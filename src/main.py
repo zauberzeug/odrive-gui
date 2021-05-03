@@ -2,6 +2,7 @@
 import streamlit as st
 import odrive
 from odrive.utils import dump_errors
+import numpy as np
 import session
 
 st.title("ODrive Tuning & Debugging")
@@ -78,6 +79,9 @@ for a, axis in enumerate([odrv.axis0, odrv.axis1]):
 
         st.header(f'Axis {a}')
 
+        if axis.error:
+            st.write('Error:', hex(axis.error))
+
         st.subheader('Settings')
 
         state.pos_gains[a] = axis.controller.config.pos_gain = st.number_input('pos_gain', min_value=0.0, value=state.pos_gains[a], key=f'number-pos_gain-{a}')
@@ -105,11 +109,20 @@ for a, axis in enumerate([odrv.axis0, odrv.axis1]):
                 if st.button(f'Switch to "{axis_state}" state', key=f'button-{axis_state}-{a}'):
                     state.axis_states[a] = states.index(axis_state)
 
-st.header('ODrive')
+st.sidebar.header('ODrive')
 
-st.write('Voltage:', odrv.vbus_voltage)
+st.sidebar.write('Serial number:', hex(odrv.serial_number).removeprefix('0x').upper())
+st.sidebar.write('Hardware version:', f'{odrv.hw_version_major}.{odrv.hw_version_minor}.{odrv.hw_version_variant}')
+st.sidebar.write('Firmware version:', f'{odrv.fw_version_major}.{odrv.fw_version_minor}.{odrv.fw_version_revision}', '(dev)' if odrv.fw_version_unreleased else '')
+st.sidebar.write('Voltage:', np.round(odrv.vbus_voltage, 2))
 
-if st.button('dump errors'):
+if st.sidebar.button('Clear errors'):
     dump_errors(odrv, True)
+
+if st.sidebar.button('Save configuration'):
+    odrv.save_configuration()
+
+if st.sidebar.button('Reboot'):
+    odrv.reboot()
 
 state.sync()

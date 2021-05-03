@@ -51,7 +51,8 @@ def number_input(odrv, view, id_, **kwargs):
     value = rgetattr(view, path)
     name = path.replace('config.', '').replace('.', ': ')
     result = st.number_input(name, value=value, key=id_.replace(' ', '-'), **kwargs)
-    rsetattr(odrv, path, result)
+    if result != rgetattr(odrv, path):
+        rsetattr(odrv, path, result)
     rsetattr(view, path, result)
 
 def radio(odrv, view, id_, options):
@@ -59,18 +60,11 @@ def radio(odrv, view, id_, options):
     path = id_.split()[0]
     value = rgetattr(view, path)
     name = path.replace('config.', '').replace('.', ': ')
-    result = st.radio(name, options, value, key=id_.replace(' ', '-'))
-    rsetattr(odrv, path, options.index(result))
-    rsetattr(view, path, options.index(result))
-
-def selectbox(odrv, view, id_, options):
-
-    path = id_.split()[0]
-    value = rgetattr(view, path)
-    name = path.replace('config.', '').replace('.', ': ')
-    result = st.selectbox(name, options, value, key=id_.replace(' ', '-'))
-    rsetattr(odrv, path, options.index(result))
-    rsetattr(view, path, options.index(result))
+    result = options.index(st.radio(name, options, value, key=id_.replace(' ', '-')))
+    if result != rgetattr(odrv, path):
+        print(path, result)
+        rsetattr(odrv, path, result)
+    rsetattr(view, path, result)
 
 def setbutton(odrv, view, id_, value):
 

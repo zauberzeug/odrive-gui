@@ -3,6 +3,7 @@ import streamlit as st
 import odrive
 from odrive.utils import dump_errors
 import numpy as np
+import pylab as pl
 import session
 import time
 import threading
@@ -23,10 +24,43 @@ if view.vbus_voltage is None:
     for key in dir(hashable):
         if not key.startswith('_'):
             setattr(view, key, getattr(hashable, key))
-    view.vel = max(
+    view.pos = [
+        abs(odrv.axis0.controller.input_pos),
+        abs(odrv.axis1.controller.input_pos),
+    ]
+    view.vel = [
         abs(odrv.axis0.controller.input_vel),
         abs(odrv.axis1.controller.input_vel),
-    )
+    ]
+
+def update():
+
+    print('start thread', threading.current_thread().name)
+    while threading.current_thread() == [ t for t in threading.enumerate() if t.name.startswith('update') ][-1]:
+        t0 = time.time()
+        while time.time() < t0 + 1.0:
+            for key, value in view.data.items():
+                value.append(oh.rgetattr(odrv, key))
+            time.sleep(0.02)
+        for key in view.data:
+            view.data[key] = view.data[key][-500:]
+        view.sync()
+    print('stop thread', threading.current_thread().name)
+
+if view.data is None:
+    keys = [
+        'axis0.encoder.pos_estimate',
+        'axis1.encoder.pos_estimate',
+        'axis0.controller.input_pos',
+        'axis1.controller.input_pos',
+        'axis0.encoder.vel_estimate',
+        'axis1.encoder.vel_estimate',
+        'axis0.controller.input_vel',
+        'axis1.controller.input_vel',
+    ]
+    view.data = { key: [] for key in keys }
+    thread = threading.Thread(target=update, daemon=True, name='update_%.3f' % time.time())
+    thread.start()
 
 cols = st.beta_columns(2)
 
@@ -54,16 +88,44 @@ for a in range(2):
 
         oh.radio(odrv_axis, view_axis, f'controller.config.control_mode {a}', oh.modes)
 
-        if oh.modes[view_axis.controller.config.control_mode] == 'velocity control':
-            view.vel = st.number_input(f'input_vel: {view_axis.controller.input_vel}', min_value=0.0, value=view.vel, key=f'vel-{a}')
-            if abs(view.vel) != abs(view_axis.controller.input_vel):
-                view_axis.controller.input_vel = odrv_axis.controller.input_vel = view.vel * np.sign(view_axis.controller.input_vel)
-            oh.setbutton(odrv_axis, view_axis, f'controller.input_vel {a}', -view.vel)
-            oh.setbutton(odrv_axis, view_axis, f'controller.input_vel {a}', 0.0)
-            oh.setbutton(odrv_axis, view_axis, f'controller.input_vel {a}', view.vel)
+        if oh.modes[view_axis.controller.config.control_mode] == 'position control':
 
-        view_axis.requested_state = view_axis.current_state
-        oh.selectbox(odrv_axis, view_axis, f'requested_state {a}', oh.states)
+            st.write('pos_setpoint:', view_axis.controller.pos_setpoint)
+            st.write('input_pos:', view_axis.controller.input_pos)
+            view.pos[a] = st.number_input(f'input_pos: {view_axis.controller.input_pos}', value=view.pos[a], key=f'pos-{a}')
+            if abs(view.pos[a]) != abs(view_axis.controller.input_pos):
+                view_axis.controller.input_pos = odrv_axis.controller.input_pos = view.pos[a] * np.sign(view_axis.controller.input_pos)
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_pos {a}0', -view.pos[a])
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_pos {a}1', 0.0)
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_pos {a}2', view.pos[a])
+
+            fig, ax = pl.subplots()
+            pl.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
+            ax.set_title('position')
+            ax.plot(view.data[f'axis{a}.encoder.pos_estimate'])
+            ax.plot(view.data[f'axis{a}.controller.input_pos'])
+            st.pyplot(fig)
+
+        if oh.modes[view_axis.controller.config.control_mode] == 'velocity control':
+
+            view.vel[a] = st.number_input(f'input_vel: {view_axis.controller.input_vel}', min_value=0.0, value=view.vel[a], key=f'vel-{a}')
+            if abs(view.vel[a]) != abs(view_axis.controller.input_vel):
+                view_axis.controller.input_vel = odrv_axis.controller.input_vel = view.vel[a] * np.sign(view_axis.controller.input_vel)
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_vel {a}0', -view.vel[a])
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_vel {a}1', 0.0)
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_vel {a}2', view.vel[a])
+
+            fig, ax = pl.subplots()
+            pl.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
+            ax.set_title('velocity')
+            ax.plot(view.data[f'axis{a}.encoder.vel_estimate'])
+            ax.plot(view.data[f'axis{a}.controller.input_vel'])
+            st.pyplot(fig)
+
+        view_axis.current_state = oh.states.index(st.selectbox('state', oh.states, view_axis.current_state, key=f'state-{a}'))
+        if view_axis.current_state != odrv_axis.current_state:
+            odrv_axis.requested_state = view_axis.current_state
+
         for state in ['idle', 'closed loop control']:
             if oh.states[view_axis.current_state] != state:
                 if st.button(f'Switch to "{state}" state', key=f'button-{state}-{a}'):
@@ -84,28 +146,5 @@ if st.sidebar.button('Save configuration'):
 
 if st.sidebar.button('Reboot'):
     odrv.reboot()
-
-def update():
-
-    print('start thread', threading.current_thread().name)
-    while threading.current_thread() == [ t for t in threading.enumerate() if t.name.startswith('update') ][-1]:
-        t0 = time.time()
-        while time.time() < t0 + 1.0:
-            view.data['vbus'].append(odrv.vbus_voltage)
-            time.sleep(0.1)
-        view.data['time'] = time.time()
-        view.data['vbus'] = view.data['vbus'][-20:]
-        view.sync()
-    print('stop thread', threading.current_thread().name)
-
-if view.data is None:
-    view.data = {
-        'time': 0,
-        'vbus': [],
-    }
-    thread = threading.Thread(target=update, daemon=True, name='update_%.3f' % time.time())
-    thread.start()
-
-st.sidebar.json(view.data)
 
 view.sync()

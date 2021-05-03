@@ -57,6 +57,8 @@ for a, axis in enumerate([odrv.axis0, odrv.axis1]):
         if modes[view_config.control_mode] == 'velocity control':
             st.write('input_vel:', view_controller.input_vel)
             view.vel = st.number_input('new value', min_value=0.0, value=view.vel, key=f'number-vel-{a}')
+            if abs(view.vel) != abs(view_controller.input_vel):
+                view_controller.input_vel = axis.controller.input_vel = view.vel * np.sign(view_controller.input_vel)
             if st.button(f'Set input_vel = {-view.vel}', key=f'button-vel-{a}a'):
                 view_controller.input_vel = axis.controller.input_vel = -view.vel
             if st.button('Set input_vel = 0.0', key=f'button-vel-{a}b'):

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 import fibre
 
-def make_hashable(obj):
+def make_hashable(obj, name=''):
 
     d = {}
     for key, value in obj._remote_attributes.items():
         if type(value) == fibre.remote_object.RemoteObject:
-            d[key] = make_hashable(value)
+            d[key] = make_hashable(value, key)
         if type(value) == fibre.remote_object.RemoteProperty:
             d[key] = value.get_value()
 
-    return type('', (), d)()
+    return type(name, (), d)()
 
 states = [
     'undefined',

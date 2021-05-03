@@ -4,6 +4,7 @@ import odrive
 from odrive.utils import dump_errors
 import numpy as np
 import session
+import time
 
 st.title("ODrive Tuning & Debugging")
 
@@ -126,3 +127,9 @@ if st.sidebar.button('Reboot'):
     odrv.reboot()
 
 state.sync()
+
+time_view = st.sidebar.json({})
+while True:
+    time_view.json({'t': time.time()})
+    time.sleep(0.1)
+

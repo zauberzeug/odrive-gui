@@ -5,6 +5,7 @@ from odrive.utils import dump_errors
 import numpy as np
 import session
 import time
+import threading
 
 st.title("ODrive Tuning & Debugging")
 
@@ -126,10 +127,27 @@ if st.sidebar.button('Save configuration'):
 if st.sidebar.button('Reboot'):
     odrv.reboot()
 
+def update():
+
+    print('start thread', threading.current_thread().name)
+    while threading.current_thread() == [ t for t in threading.enumerate() if t.name.startswith('update') ][-1]:
+        t0 = time.time()
+        while time.time() < t0 + 0.5:
+            state.data['vbus'].append(odrv.vbus_voltage)
+            time.sleep(0.1)
+        state.data['time'] = time.time()
+        state.data['vbus'] = state.data['vbus'][-20:]
+        state.sync()
+    print('stop thread', threading.current_thread().name)
+
+if state.data is None:
+    state.data = {
+        'time': 0,
+        'vbus': [],
+    }
+    thread = threading.Thread(target=update, daemon=True, name='update_%.3f' % time.time())
+    thread.start()
+
+st.sidebar.json(state.data)
+
 state.sync()
-
-time_view = st.sidebar.json({})
-while True:
-    time_view.json({'t': time.time()})
-    time.sleep(0.1)
-

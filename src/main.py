@@ -24,13 +24,17 @@ if view.vbus_voltage is None:
     for key in dir(hashable):
         if not key.startswith('_'):
             setattr(view, key, getattr(hashable, key))
-    view.pos = [
-        abs(odrv.axis0.controller.input_pos),
-        abs(odrv.axis1.controller.input_pos),
+    view.torque = [
+        abs(odrv.axis0.controller.input_torque),
+        abs(odrv.axis1.controller.input_torque),
     ]
     view.vel = [
         abs(odrv.axis0.controller.input_vel),
         abs(odrv.axis1.controller.input_vel),
+    ]
+    view.pos = [
+        abs(odrv.axis0.controller.input_pos),
+        abs(odrv.axis1.controller.input_pos),
     ]
 
 def update():
@@ -88,10 +92,17 @@ for a in range(2):
 
         oh.radio(odrv_axis, view_axis, f'controller.config.control_mode {a}', oh.modes)
 
+        if oh.modes[view_axis.controller.config.control_mode] == 'torque control':
+
+            view.torque[a] = st.number_input(f'input_torque: {view_axis.controller.input_torque}', value=view.torque[a], key=f'torque-{a}')
+            if abs(view.torque[a]) != abs(view_axis.controller.input_torque):
+                view_axis.controller.input_torque = odrv_axis.controller.input_torque = view.torque[a] * np.sign(view_axis.controller.input_torque)
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_torque {a}0', -view.torque[a])
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_torque {a}1', 0.0)
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_torque {a}2', view.torque[a])
+
         if oh.modes[view_axis.controller.config.control_mode] == 'position control':
 
-            st.write('pos_setpoint:', view_axis.controller.pos_setpoint)
-            st.write('input_pos:', view_axis.controller.input_pos)
             view.pos[a] = st.number_input(f'input_pos: {view_axis.controller.input_pos}', value=view.pos[a], key=f'pos-{a}')
             if abs(view.pos[a]) != abs(view_axis.controller.input_pos):
                 view_axis.controller.input_pos = odrv_axis.controller.input_pos = view.pos[a] * np.sign(view_axis.controller.input_pos)

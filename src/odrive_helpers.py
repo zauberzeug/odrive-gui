@@ -62,7 +62,6 @@ def radio(odrv, view, id_, options):
     name = path.replace('config.', '').replace('.', ': ')
     result = options.index(st.radio(name, options, value, key=id_.replace(' ', '-')))
     if result != rgetattr(odrv, path):
-        print(path, result)
         rsetattr(odrv, path, result)
     rsetattr(view, path, result)
 

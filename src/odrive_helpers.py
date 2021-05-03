@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+import streamlit as st
 import fibre
+import functools
 
 def make_hashable(obj, name=''):
 
@@ -33,4 +35,48 @@ modes = [
     'velocity control',
     'position control',
 ]
+
+# https://stackoverflow.com/a/31174427/3419103
+def rsetattr(obj, attr, val):
+    pre, _, post = attr.rpartition('.')
+    return setattr(rgetattr(obj, pre) if pre else obj, post, val)
+def rgetattr(obj, attr, *args):
+    def _getattr(obj, attr):
+        return getattr(obj, attr, *args)
+    return functools.reduce(_getattr, [obj] + attr.split('.'))
+
+def number_input(odrv, view, id_, **kwargs):
+
+    path = id_.split()[0]
+    value = rgetattr(view, path)
+    name = path.replace('config.', '').replace('.', ': ')
+    result = st.number_input(name, value=value, key=id_.replace(' ', '-'), **kwargs)
+    rsetattr(odrv, path, result)
+    rsetattr(view, path, result)
+
+def radio(odrv, view, id_, options):
+
+    path = id_.split()[0]
+    value = rgetattr(view, path)
+    name = path.replace('config.', '').replace('.', ': ')
+    result = st.radio(name, options, value, key=id_.replace(' ', '-'))
+    rsetattr(odrv, path, options.index(result))
+    rsetattr(view, path, options.index(result))
+
+def selectbox(odrv, view, id_, options):
+
+    path = id_.split()[0]
+    value = rgetattr(view, path)
+    name = path.replace('config.', '').replace('.', ': ')
+    result = st.selectbox(name, options, value, key=id_.replace(' ', '-'))
+    rsetattr(odrv, path, options.index(result))
+    rsetattr(view, path, options.index(result))
+
+def setbutton(odrv, view, id_, value):
+
+    path = id_.split()[0]
+    name = path.replace('config.', '').replace('.', ': ')
+    if st.button(f'{name} := {value}', key=id_.replace(' ', '-')):
+        rsetattr(odrv, path, value)
+        rsetattr(view, path, value)
 

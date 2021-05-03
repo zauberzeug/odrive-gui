@@ -6,7 +6,8 @@ import numpy as np
 import session
 import time
 import threading
-from odrive_helpers import make_hashable, states, modes
+import odrive_helpers as oh
+
 
 st.title("ODrive Tuning & Debugging")
 
@@ -18,7 +19,7 @@ odrv = get_odrv()
 
 view = session.get_state()
 if view.vbus_voltage is None:
-    hashable = make_hashable(odrv, 'odrv')
+    hashable = oh.make_hashable(odrv, 'odrv')
     for key in dir(hashable):
         if not key.startswith('_'):
             setattr(view, key, getattr(hashable, key))
@@ -32,12 +33,7 @@ cols = st.beta_columns(2)
 for a in range(2):
 
     view_axis = view.axis0 if a == 0 else view.axis1
-    view_ctrl = view_axis.controller
-    view_enc = view_axis.encoder
-
     odrv_axis = odrv.axis0 if a == 0 else odrv.axis1
-    odrv_ctrl = odrv_axis.controller
-    odrv_enc = odrv_axis.encoder
 
     with cols[a]:
 
@@ -48,34 +44,30 @@ for a in range(2):
 
         st.subheader('Settings')
 
-        view_ctrl.config.pos_gain = odrv_ctrl.config.pos_gain = st.number_input('pos_gain', min_value=0.0, value=odrv_ctrl.config.pos_gain, key=f'number-pos_gain-{a}')
-        view_ctrl.config.vel_gain = odrv_ctrl.config.vel_gain = st.number_input('vel_gain', min_value=0.0, value=odrv_ctrl.config.vel_gain, key=f'number-vel_gain-{a}')
-        view_ctrl.config.vel_integrator = odrv_ctrl.config.vel_integrator_gain = st.number_input('vel_integrator_gain', min_value=0.0, value=odrv_ctrl.config.vel_integrator_gain, key=f'number-vel_integrator_gain-{a}')
-        view_ctrl.config.vel_limit = odrv_ctrl.config.vel_limit = st.number_input('vel_limit', min_value=0.0, value=odrv_ctrl.config.vel_limit, key=f'number-vel_limit-{a}')
-        view_enc.config.bandwidth = odrv_enc.config.bandwidth = st.number_input('enc_bandwidth', min_value=0.0, value=odrv_enc.config.bandwidth, key=f'number-bandwidth-{a}')
+        oh.number_input(odrv_axis, view_axis, f'controller.config.pos_gain {a}', min_value=0.0)
+        oh.number_input(odrv_axis, view_axis, f'controller.config.vel_gain {a}', min_value=0.0)
+        oh.number_input(odrv_axis, view_axis, f'controller.config.vel_integrator_gain {a}', min_value=0.0)
+        oh.number_input(odrv_axis, view_axis, f'controller.config.vel_limit {a}', min_value=0.0)
+        oh.number_input(odrv_axis, view_axis, f'encoder.config.bandwidth {a}', min_value=0.0)
 
         st.subheader('Test')
 
-        view_ctrl.config.control_mode = odrv_ctrl.config.control_mode = modes.index(st.radio('Mode', modes, odrv_ctrl.config.control_mode, key=f'selectbox-mode-{a}'))
+        oh.radio(odrv_axis, view_axis, f'controller.config.control_mode {a}', oh.modes)
 
-        if modes[view_ctrl.config.control_mode] == 'velocity control':
-            st.write('input_vel:', view_ctrl.input_vel)
-            view.vel = st.number_input('new value', min_value=0.0, value=view.vel, key=f'number-vel-{a}')
-            if abs(view.vel) != abs(view_ctrl.input_vel):
-                print("YES")
-                view_ctrl.input_vel = odrv_ctrl.input_vel = view.vel * np.sign(view_ctrl.input_vel)
-            if st.button(f'Set input_vel = {-view.vel}', key=f'button-vel-{a}a'):
-                view_ctrl.input_vel = odrv_ctrl.input_vel = -view.vel
-            if st.button('Set input_vel = 0.0', key=f'button-vel-{a}b'):
-                view_ctrl.input_vel = odrv_ctrl.input_vel = 0.0
-            if st.button(f'Set input_vel = {view.vel}', key=f'button-vel-{a}c'):
-                view_ctrl.input_vel = odrv_ctrl.input_vel = view.vel
+        if oh.modes[view_axis.controller.config.control_mode] == 'velocity control':
+            view.vel = st.number_input(f'input_vel: {view_axis.controller.input_vel}', min_value=0.0, value=view.vel, key=f'vel-{a}')
+            if abs(view.vel) != abs(view_axis.controller.input_vel):
+                view_axis.controller.input_vel = odrv_axis.controller.input_vel = view.vel * np.sign(view_axis.controller.input_vel)
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_vel {a}', -view.vel)
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_vel {a}', 0.0)
+            oh.setbutton(odrv_axis, view_axis, f'controller.input_vel {a}', view.vel)
 
-        view_axis.current_state = odrv_axis.requested_state = states.index(st.selectbox('State', states, view_axis.current_state, key=f'selectbox-state-{a}'))
+        view_axis.requested_state = view_axis.current_state
+        oh.selectbox(odrv_axis, view_axis, f'requested_state {a}', oh.states)
         for state in ['idle', 'closed loop control']:
-            if states[view_axis.current_state] != state:
+            if oh.states[view_axis.current_state] != state:
                 if st.button(f'Switch to "{state}" state', key=f'button-{state}-{a}'):
-                    view_axis.current_state = states.index(state)
+                    view_axis.current_state = oh.states.index(state)
 
 st.sidebar.header('ODrive')
 

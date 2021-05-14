@@ -41,22 +41,19 @@ with ui.row().add_classes('items-center'):
 
 def axis_column(a: int, axis: Any):
 
-    ui.label(f'Axis {a}', 'bold')
+    ui.label(f'Axis {a}', 'h5')
 
     ui.label(f'Error: {axis.error:x}' if axis.error else '')
 
     ctr_cfg = axis.controller.config
     enc_cfg = axis.encoder.config
 
+    ui.toggle(modes, ctr_cfg.control_mode, on_change=lambda e: setattr(ctr_cfg, 'control_mode', e.value['value']))
+
     with ui.row().add_classes('items-center'):
         ui.label('State:')
         ui.select(states, axis.current_state, on_change=lambda e: setattr(axis, 'requested_state', e.value))
         # TODO: bind to odrv
-
-    with ui.row().add_classes('items-center'):
-        ui.label('Mode:')
-        ui.select(modes, ctr_cfg.control_mode, on_change=lambda e: setattr(ctr_cfg, 'control_mode', e.value['value']))
-        # TODO: toggle buttons
 
     params = {'decimals': 3, 'design': 'outlined'}
     with ui.row():

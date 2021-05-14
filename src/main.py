@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-from typing import Any
 from nicegui import ui
 import odrive
 from odrive.utils import dump_errors
+from typing import Any
+from datetime import datetime
 
 odrv = odrive.find_any()
 
@@ -69,6 +70,12 @@ def axis_column(a: int, axis: Any):
     with ui.row():
         ui.number(label='vel_integrator_gain', value=getattr(ctr_cfg, 'vel_integrator_gain'), **params,
                   on_change=lambda e: setattr(ctr_cfg, 'vel_integrator_gain', e.value))
+
+    pos_plot = ui.line_plot(n=2, update_every=10).with_legend(['input_pos', 'pos_estimate'], loc='upper left', ncol=2)
+    ui.timer(0.05, lambda: pos_plot.push([datetime.now()], [[axis.controller.input_pos], [axis.encoder.pos_estimate]]))
+
+    vel_plot = ui.line_plot(n=2, update_every=10).with_legend(['input_vel', 'vel_estimate'], loc='upper left', ncol=2)
+    ui.timer(0.05, lambda: vel_plot.push([datetime.now()], [[axis.controller.input_vel], [axis.encoder.vel_estimate]]))
 
     with ui.row():
 

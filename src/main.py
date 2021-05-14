@@ -48,7 +48,7 @@ def axis_column(a: int, axis: Any):
     ctr_cfg = axis.controller.config
     enc_cfg = axis.encoder.config
 
-    ui.toggle(modes, ctr_cfg.control_mode, on_change=lambda e: setattr(ctr_cfg, 'control_mode', e.value['value']))
+    ui.toggle(modes, ctr_cfg.control_mode, on_change=lambda e: setattr(ctr_cfg, 'control_mode', e.value))
 
     with ui.row().add_classes('items-center'):
         ui.label('State:')

@@ -35,6 +35,17 @@ def axis_column(a: int, axis: Any):
         ui.number(label=key, value=getattr(obj, key), decimals=3,
                   design='outlined', on_change=lambda e: setattr(obj, key, e.value))
 
+    ui.label('Test', 'h6')
+
+    modes = {
+        0: 'voltage control',
+        1: 'torque control',
+        2: 'velocity control',
+        3: 'position control',
+    }
+    ui.radio(modes, axis.controller.config.control_mode,
+             on_change=lambda e: setattr(axis.controller.config, 'control_mode', e.value['value']))
+
 with ui.row():
     for a, axis in enumerate([odrv.axis0, odrv.axis1]):
         with ui.column():

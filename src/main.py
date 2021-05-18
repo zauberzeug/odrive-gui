@@ -38,6 +38,7 @@ with ui.row().add_classes('items-center'):
              f'{"(dev)" if odrv.fw_version_unreleased else ""}')
     voltage = ui.label()
     ui.timer(1.0, lambda: voltage.set_text(f'{odrv.vbus_voltage:.2f} V'))
+    ui.button(icon='save', design='flat round', on_click=lambda: odrv.save_configuration())
     ui.button(icon='bug_report', design='flat round', on_click=lambda: dump_errors(odrv, True))
 
 def axis_column(a: int, axis: Any):

@@ -27,16 +27,7 @@ input_modes = {
 states = {
     0: 'undefined',
     1: 'idle',
-    2: 'startup sequence',
-    3: 'full calibration sequence',
-    4: 'motor calibration',
-    5: 'sensorless control',
-    6: 'encoder index search',
-    7: 'encoder offset calibration',
-    8: 'closed loop control',
-    9: 'lockin spin',
-    10: 'encoder dir find',
-    11: 'homing',
+    8: 'closed loop',
 }
 
 ui.label('ODrive', 'h4')
@@ -55,23 +46,15 @@ def axis_column(a: int, axis: Any):
 
     ui.label(f'Axis {a}', 'h5')
 
-    ui.label(f'Error: {axis.error:x}' if axis.error else '')
-
     ctr_cfg = axis.controller.config
     enc_cfg = axis.encoder.config
+    trp_cfg = axis.trap_traj.config
+
+    ui.toggle(states).bind_value_to(axis.requested_state, forward=lambda x: x or 0).bind_value_from(axis.current_state)
 
     mode = ui.toggle(modes).bind_value(ctr_cfg.control_mode)
 
     params = {'format': '%.3f', 'design': 'outlined'}
-
-    input_mode = ui.toggle(input_modes).bind_value(ctr_cfg.input_mode)
-    with ui.row():
-        ui.number(label='vel_ramp_rate', **params).bind_value(ctr_cfg.vel_ramp_rate) \
-            .bind_visibility_from(input_mode.value, backward=lambda m: m == 2)
-        ui.number(label='input_filter_bandwidth', **params).bind_value(ctr_cfg.input_filter_bandwidth) \
-            .bind_visibility_from(input_mode.value, backward=lambda m: m == 3)
-        ui.number(label='inertia', **params).bind_value(ctr_cfg.inertia) \
-            .bind_visibility_from(input_mode.value, backward=lambda m: m in [2, 3])
 
     with ui.row():
         ui.number(label='pos_gain', **params).bind_value(ctr_cfg.pos_gain)
@@ -81,6 +64,27 @@ def axis_column(a: int, axis: Any):
         ui.number(label='bandwidth', **params).bind_value(enc_cfg.bandwidth)
     with ui.row():
         ui.number(label='vel_integrator_gain', **params).bind_value(ctr_cfg.vel_integrator_gain)
+
+    input_mode = ui.toggle(input_modes).bind_value(ctr_cfg.input_mode)
+    with ui.row():
+        ui.number(label='inertia', **params).bind_value(ctr_cfg.inertia) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m in [2, 3, 5])
+        ui.number(label='velocity ramp rate', **params).bind_value(ctr_cfg.vel_ramp_rate) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m == 2)
+        ui.number(label='input filter bandwidth', **params).bind_value(ctr_cfg.input_filter_bandwidth) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m == 3)
+        ui.number(label='trajectory velocity limit', **params).bind_value(trp_cfg.vel_limit) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m == 5)
+        ui.number(label='trajectory acceleration limit', **params).bind_value(trp_cfg.accel_limit) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m == 5)
+        ui.number(label='trajectory deceleration limit', **params).bind_value(trp_cfg.decel_limit) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m == 5)
+        ui.number(label='torque ramp rate', **params).bind_value(ctr_cfg.torque_ramp_rate) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m == 6)
+        ui.number(label='mirror ratio', **params).bind_value(ctr_cfg.mirror_ratio) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m == 7)
+        ui.toggle({0: 'axis 0', 1: 'axis 1'}).bind_value(ctr_cfg.axis_to_mirror) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m == 7)
 
     with ui.row():
         pos_check = ui.checkbox('Position plot', value=False)
@@ -141,12 +145,6 @@ def axis_column(a: int, axis: Any):
                     ui.button(design='round flat', icon='skip_previous', on_click=lambda: send_position(-1))
                     ui.button(design='round flat', icon='exposure_zero', on_click=lambda: send_position(0))
                     ui.button(design='round flat', icon='skip_next', on_click=lambda: send_position(1))
-
-        with ui.column():
-            ui.button('idle', icon='stop', on_click=lambda: setattr(axis, 'requested_state', 1))
-            ui.button('loop', icon='play_arrow', on_click=lambda: setattr(axis, 'requested_state', 8))
-            ui.select(states, on_change=lambda e: setattr(axis, 'requested_state', e.value.value)) \
-                .bind_value_from(axis.current_state)
 
 with ui.row():
     for a, axis in enumerate([odrv.axis0, odrv.axis1]):

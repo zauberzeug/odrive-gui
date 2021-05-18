@@ -14,6 +14,16 @@ modes = {
     3: 'position',
 }
 
+input_modes = {
+    0: 'inactive',
+    1: 'passthrough',
+    2: 'vel_ramp',
+    3: 'pos_filter',
+    5: 'trap_traj',
+    6: 'torque_ramp',
+    7: 'mirror',
+}
+
 states = {
     0: 'undefined',
     1: 'idle',
@@ -52,12 +62,17 @@ def axis_column(a: int, axis: Any):
 
     mode = ui.toggle(modes).bind_value(ctr_cfg.control_mode)
 
-    with ui.row().add_classes('items-center'):
-        ui.label('State:')
-        ui.select(states, on_change=lambda e: setattr(axis, 'requested_state', e.value.value)) \
-            .bind_value_from(axis.current_state)
-
     params = {'format': '%.3f', 'design': 'outlined'}
+
+    input_mode = ui.toggle(input_modes).bind_value(ctr_cfg.input_mode)
+    with ui.row():
+        ui.number(label='vel_ramp_rate', **params).bind_value(ctr_cfg.vel_ramp_rate) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m == 2)
+        ui.number(label='input_filter_bandwidth', **params).bind_value(ctr_cfg.input_filter_bandwidth) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m == 3)
+        ui.number(label='inertia', **params).bind_value(ctr_cfg.inertia) \
+            .bind_visibility_from(input_mode.value, backward=lambda m: m in [2, 3])
+
     with ui.row():
         ui.number(label='pos_gain', **params).bind_value(ctr_cfg.pos_gain)
         ui.number(label='vel_limit', **params).bind_value(ctr_cfg.vel_limit)
@@ -130,6 +145,8 @@ def axis_column(a: int, axis: Any):
         with ui.column():
             ui.button('idle', icon='stop', on_click=lambda: setattr(axis, 'requested_state', 1))
             ui.button('loop', icon='play_arrow', on_click=lambda: setattr(axis, 'requested_state', 8))
+            ui.select(states, on_change=lambda e: setattr(axis, 'requested_state', e.value.value)) \
+                .bind_value_from(axis.current_state)
 
 with ui.row():
     for a, axis in enumerate([odrv.axis0, odrv.axis1]):

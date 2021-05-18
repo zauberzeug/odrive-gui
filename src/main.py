@@ -66,11 +66,19 @@ def axis_column(a: int, axis: Any):
     with ui.row():
         ui.number(label='vel_integrator_gain', **params).bind_value(ctr_cfg.vel_integrator_gain)
 
+    with ui.row():
+        pos_check = ui.checkbox('Position plot', value=False)
+        vel_check = ui.checkbox('Velocity plot', value=False)
+
     pos_plot = ui.line_plot(n=2, update_every=10).with_legend(['input_pos', 'pos_estimate'], loc='upper left', ncol=2)
-    ui.timer(0.05, lambda: pos_plot.push([datetime.now()], [[axis.controller.input_pos], [axis.encoder.pos_estimate]]))
+    def pos_push(): return pos_plot.push([datetime.now()], [[axis.controller.input_pos], [axis.encoder.pos_estimate]])
+    pos_timer = ui.timer(0.05, pos_push)
+    pos_check.bind_value_to(pos_plot.visible).bind_value_to(pos_timer.active)
 
     vel_plot = ui.line_plot(n=2, update_every=10).with_legend(['input_vel', 'vel_estimate'], loc='upper left', ncol=2)
-    ui.timer(0.05, lambda: vel_plot.push([datetime.now()], [[axis.controller.input_vel], [axis.encoder.vel_estimate]]))
+    def vel_push(): return vel_plot.push([datetime.now()], [[axis.controller.input_vel], [axis.encoder.vel_estimate]])
+    vel_timer = ui.timer(0.05, vel_push)
+    vel_check.bind_value_to(vel_plot.visible).bind_value_to(vel_timer.active)
 
     with ui.row():
 

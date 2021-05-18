@@ -49,27 +49,22 @@ def axis_column(a: int, axis: Any):
     ctr_cfg = axis.controller.config
     enc_cfg = axis.encoder.config
 
-    ui.toggle(modes, ctr_cfg.control_mode, on_change=lambda e: setattr(ctr_cfg, 'control_mode', e.value))
+    mode = ui.toggle(modes).bind_value(ctr_cfg.control_mode)
 
     with ui.row().add_classes('items-center'):
         ui.label('State:')
-        ui.select(states, axis.current_state, on_change=lambda e: setattr(axis, 'requested_state', e.value))
-        # TODO: bind to odrv
+        ui.select(states, on_change=lambda e: setattr(axis, 'requested_state', e.value.value)) \
+            .bind_value_from(axis.current_state)
 
-    params = {'decimals': 3, 'design': 'outlined'}
+    params = {'format': '%.3f', 'design': 'outlined'}
     with ui.row():
-        ui.number(label='pos_gain', value=getattr(ctr_cfg, 'pos_gain'), **params,
-                  on_change=lambda e: setattr(ctr_cfg, 'pos_gain', e.value))
-        ui.number(label='vel_limit', value=getattr(ctr_cfg, 'vel_limit'), **params,
-                  on_change=lambda e: setattr(ctr_cfg, 'vel_limit', e.value))
+        ui.number(label='pos_gain', **params).bind_value(ctr_cfg.pos_gain)
+        ui.number(label='vel_limit', **params).bind_value(ctr_cfg.vel_limit)
     with ui.row():
-        ui.number(label='vel_gain', value=getattr(ctr_cfg, 'vel_gain'), **params,
-                  on_change=lambda e: setattr(ctr_cfg, 'vel_gain', e.value))
-        ui.number(label='bandwidth', value=getattr(enc_cfg, 'bandwidth'), **params,
-                  on_change=lambda e: setattr(enc_cfg, 'bandwidth', e.value))
+        ui.number(label='vel_gain', **params).bind_value(ctr_cfg.vel_gain)
+        ui.number(label='bandwidth', **params).bind_value(enc_cfg.bandwidth)
     with ui.row():
-        ui.number(label='vel_integrator_gain', value=getattr(ctr_cfg, 'vel_integrator_gain'), **params,
-                  on_change=lambda e: setattr(ctr_cfg, 'vel_integrator_gain', e.value))
+        ui.number(label='vel_integrator_gain', **params).bind_value(ctr_cfg.vel_integrator_gain)
 
     pos_plot = ui.line_plot(n=2, update_every=10).with_legend(['input_pos', 'pos_estimate'], loc='upper left', ncol=2)
     ui.timer(0.05, lambda: pos_plot.push([datetime.now()], [[axis.controller.input_pos], [axis.encoder.pos_estimate]]))
@@ -81,13 +76,12 @@ def axis_column(a: int, axis: Any):
 
         with ui.column():
 
-            with ui.card():
+            with ui.card().bind_visibility_from(mode.value, backward=lambda m: m == 1):
 
                 ui.label('Torque', 'bold')
 
                 torque = type('', (), {"value": 0})()
-                ui.number(label='input torque', value=torque.value,
-                          on_change=lambda e: setattr(torque, 'value', e.value))
+                ui.number(label='input torque').bind_value(torque.value)
 
                 def send_torque(sign: int):
                     axis.controller.input_torque = sign * float(torque.value)
@@ -96,13 +90,12 @@ def axis_column(a: int, axis: Any):
                     ui.button(design='round flat', icon='radio_button_unchecked', on_click=lambda: send_torque(0))
                     ui.button(design='round flat', icon='add', on_click=lambda: send_torque(1))
 
-            with ui.card():
+            with ui.card().bind_visibility_from(mode.value, backward=lambda m: m == 2):
 
                 ui.label('Velocity', 'bold')
 
                 velocity = type('', (), {"value": 0})()
-                ui.number(label='input velocity', value=velocity.value,
-                          on_change=lambda e: setattr(velocity, 'value', e.value))
+                ui.number(label='input velocity').bind_value(velocity.value)
 
                 def send_velocity(sign: int):
                     axis.controller.input_vel = sign * float(velocity.value)
@@ -111,13 +104,12 @@ def axis_column(a: int, axis: Any):
                     ui.button(design='round flat', icon='stop', on_click=lambda: send_velocity(0))
                     ui.button(design='round flat', icon='fast_forward', on_click=lambda: send_velocity(1))
 
-            with ui.card():
+            with ui.card().bind_visibility_from(mode.value, backward=lambda m: m == 3):
 
                 ui.label('Position', 'bold')
 
                 position = type('', (), {"value": 0})()
-                ui.number(label='input position', value=position.value,
-                          on_change=lambda e: setattr(position, 'value', e.value))
+                ui.number(label='input position').bind_value(position.value)
 
                 def send_position(sign: int):
                     axis.controller.input_pos = sign * float(position.value)

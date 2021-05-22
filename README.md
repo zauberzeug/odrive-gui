@@ -1,13 +1,15 @@
+<img src="https://raw.githubusercontent.com/zauberzeug/odrive-gui/main/sceenshot.png" width="500" align="right">
+
 # ODrive GUI
 
-A Streamlit driven GUI to tweak and debug the ODrive hardware controller. All packaged in a Docker image for easy usage.
+A Streamlit driven GUI to tweak and debug the ODrive hardware controller. Also packaged in a Docker image for easy usage.
 
-# Build
+## Usage
 
-Currently it only builds on x86 and not arm64 (l4t, nvidia jetson)
+Just start the container with
 
-    docker build . -t zauberzeug/odrive-gui:streamlit-latest
+```bash
+docker run --privileged --rm -p 80:80 --name odrive -it zauberzeug/odrive-gui:latest
+```
 
-# Run
-
-    docker run --privileged --rm -p 80:80 --name odrive -it -v "$(pwd)"/src:/app zauberzeug/odrive-gui:streamlit-latest
+and access the interface at http://localhost/. It's convienient to use the `--privileged` parameter to allow access to usb, but you can also provide only the device you want to use.

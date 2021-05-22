@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/zauberzeug/odrive-gui/main/screenshot.png" width="500" align="right">
+<img src="https://github.com/zauberzeug/odrive-gui/raw/main/screenshot.png" width="500" align="right">
 
 # ODrive GUI
 

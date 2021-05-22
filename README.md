@@ -1,8 +1,8 @@
-<img src="https://github.com/zauberzeug/odrive-gui/raw/main/screenshot.png" width="500" align="right">
-
 # ODrive GUI
 
 A Streamlit driven GUI to tweak and debug the ODrive hardware controller. Also packaged in a Docker image for easy usage.
+
+<img src="https://github.com/zauberzeug/odrive-gui/raw/main/screenshot.png" width="100%">
 
 ## Usage
 

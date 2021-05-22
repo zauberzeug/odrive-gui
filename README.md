@@ -10,7 +10,7 @@ It also comes packaged in a Docker image for easy usage.
 Just start the container with
 
 ```bash
-docker run --privileged --rm -p 80:80 --name odrive -it zauberzeug/odrive-gui:latest
+docker run --privileged -p 80:80 --name odrive -it zauberzeug/odrive-gui:latest
 ```
 
 and access the interface at http://localhost/.

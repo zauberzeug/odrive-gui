@@ -30,21 +30,21 @@ states = {
     8: 'loop',
 }
 
-ui.label('ODrive', 'h4')
+ui.markdown('## ODrive')
 
-with ui.row().add_classes('items-center'):
+with ui.row().classes('items-center'):
     ui.label(f'SN {hex(odrv.serial_number).removeprefix("0x").upper()}')
     ui.label(f'HW {odrv.hw_version_major}.{odrv.hw_version_minor}.{odrv.hw_version_variant}')
     ui.label(f'FW {odrv.fw_version_major}.{odrv.fw_version_minor}.{odrv.fw_version_revision} ' +
              f'{"(dev)" if odrv.fw_version_unreleased else ""}')
     voltage = ui.label()
     ui.timer(1.0, lambda: voltage.set_text(f'{odrv.vbus_voltage:.2f} V'))
-    ui.button(icon='save', design='flat round', on_click=lambda: odrv.save_configuration())
-    ui.button(icon='bug_report', design='flat round', on_click=lambda: dump_errors(odrv, True))
+    ui.button(on_click=lambda: odrv.save_configuration()).props('icon=save flat round')
+    ui.button(on_click=lambda: dump_errors(odrv, True)).props('icon=bug_report flat round')
 
 def axis_column(a: int, axis: Any):
 
-    ui.label(f'Axis {a}', 'h5')
+    ui.markdown(f'### Axis {a}')
 
     ctr_cfg = axis.controller.config
     enc_cfg = axis.encoder.config
@@ -56,80 +56,78 @@ def axis_column(a: int, axis: Any):
             .bind_value_to(axis.requested_state, forward=lambda x: x or 0) \
             .bind_value_from(axis.current_state)
 
-    params = {'format': '%.3f', 'design': 'outlined'}
-
     with ui.row():
 
         with ui.card().bind_visibility_from(mode.value, backward=lambda m: m == 1):
 
-            ui.label('Torque', 'bold')
+            ui.markdown('**Torque**')
 
             torque = type('', (), {"value": 0})()
-            ui.number(label='input torque').bind_value(torque.value)
+            ui.number('input torque').bind_value(torque.value)
 
             def send_torque(sign: int):
                 axis.controller.input_torque = sign * float(torque.value)
             with ui.row():
-                ui.button(design='round flat', icon='remove', on_click=lambda: send_torque(-1))
-                ui.button(design='round flat', icon='radio_button_unchecked', on_click=lambda: send_torque(0))
-                ui.button(design='round flat', icon='add', on_click=lambda: send_torque(1))
+                ui.button(on_click=lambda: send_torque(-1)).props('round flat icon=remove')
+                ui.button(on_click=lambda: send_torque(0)).props('round flat icon=radio_button_unchecked')
+                ui.button(on_click=lambda: send_torque(1)).props('round flat icon=add')
 
         with ui.card().bind_visibility_from(mode.value, backward=lambda m: m == 2):
 
-            ui.label('Velocity', 'bold')
+            ui.markdown('**Velocity**')
 
             velocity = type('', (), {"value": 0})()
-            ui.number(label='input velocity').bind_value(velocity.value)
+            ui.number('input velocity').bind_value(velocity.value)
 
             def send_velocity(sign: int):
                 axis.controller.input_vel = sign * float(velocity.value)
             with ui.row():
-                ui.button(design='round flat', icon='fast_rewind', on_click=lambda: send_velocity(-1))
-                ui.button(design='round flat', icon='stop', on_click=lambda: send_velocity(0))
-                ui.button(design='round flat', icon='fast_forward', on_click=lambda: send_velocity(1))
+                ui.button(on_click=lambda: send_velocity(-1)).props('round flat icon=fast_rewind')
+                ui.button(on_click=lambda: send_velocity(0)).props('round flat icon=stop')
+                ui.button(on_click=lambda: send_velocity(1)).props('round flat icon=fast_forward')
 
         with ui.card().bind_visibility_from(mode.value, backward=lambda m: m == 3):
 
-            ui.label('Position', 'bold')
+            ui.markdown('**Position**')
 
             position = type('', (), {"value": 0})()
-            ui.number(label='input position').bind_value(position.value)
+            ui.number('input position').bind_value(position.value)
 
             def send_position(sign: int):
                 axis.controller.input_pos = sign * float(position.value)
             with ui.row():
-                ui.button(design='round flat', icon='skip_previous', on_click=lambda: send_position(-1))
-                ui.button(design='round flat', icon='exposure_zero', on_click=lambda: send_position(0))
-                ui.button(design='round flat', icon='skip_next', on_click=lambda: send_position(1))
+                ui.button(on_click=lambda: send_position(-1)).props('round flat icon=skip_previous')
+                ui.button(on_click=lambda: send_position(0)).props('round flat icon=exposure_zero')
+                ui.button(on_click=lambda: send_position(1)).props('round flat icon=skip_next')
 
         with ui.column():
 
-            ui.number(label='pos_gain', **params).bind_value(ctr_cfg.pos_gain)
-            ui.number(label='vel_gain', **params).bind_value(ctr_cfg.vel_gain)
-            ui.number(label='vel_integrator_gain', **params).bind_value(ctr_cfg.vel_integrator_gain)
+            ui.number('pos_gain', format='%.3f').props('outlined').bind_value(ctr_cfg.pos_gain)
+            ui.number('vel_gain', format='%.3f').props('outlined').bind_value(ctr_cfg.vel_gain)
+            ui.number('vel_integrator_gain', format='%.3f').props('outlined').bind_value(ctr_cfg.vel_integrator_gain)
 
         with ui.column():
 
-            ui.number(label='vel_limit', **params).bind_value(ctr_cfg.vel_limit)
-            ui.number(label='bandwidth', **params).bind_value(enc_cfg.bandwidth)
+            ui.number('vel_limit', format='%.3f').props('outlined').bind_value(ctr_cfg.vel_limit)
+            ui.number('bandwidth', format='%.3f').props('outlined').bind_value(enc_cfg.bandwidth)
 
     input_mode = ui.toggle(input_modes).bind_value(ctr_cfg.input_mode)
     with ui.row():
-        ui.number(label='inertia', **params).bind_value(ctr_cfg.inertia) \
+        ui.number('inertia', format='%.3f').props('outlined').bind_value(ctr_cfg.inertia) \
             .bind_visibility_from(input_mode.value, backward=lambda m: m in [2, 3, 5])
-        ui.number(label='velocity ramp rate', **params).bind_value(ctr_cfg.vel_ramp_rate) \
+        ui.number('velocity ramp rate', format='%.3f').props('outlined').bind_value(ctr_cfg.vel_ramp_rate) \
             .bind_visibility_from(input_mode.value, backward=lambda m: m == 2)
-        ui.number(label='input filter bandwidth', **params).bind_value(ctr_cfg.input_filter_bandwidth) \
+        ui.number('input filter bandwidth', format='%.3f').props('outlined').bind_value(ctr_cfg.input_filter_bandwidth) \
             .bind_visibility_from(input_mode.value, backward=lambda m: m == 3)
-        ui.number(label='trajectory velocity limit', **params).bind_value(trp_cfg.vel_limit) \
+        ui.number('trajectory velocity limit', format='%.3f').props('outlined').bind_value(trp_cfg.vel_limit) \
             .bind_visibility_from(input_mode.value, backward=lambda m: m == 5)
-        ui.number(label='trajectory acceleration limit', **params).bind_value(trp_cfg.accel_limit) \
+        ui.number('trajectory acceleration limit', format='%.3f').props('outlined').bind_value(trp_cfg.accel_limit) \
             .bind_visibility_from(input_mode.value, backward=lambda m: m == 5)
-        ui.number(label='trajectory deceleration limit', **params).bind_value(trp_cfg.decel_limit) \
+        ui.number('trajectory deceleration limit', format='%.3f').props('outlined').bind_value(trp_cfg.decel_limit) \
             .bind_visibility_from(input_mode.value, backward=lambda m: m == 5)
-        ui.number(label='torque ramp rate', **params).bind_value(ctr_cfg.torque_ramp_rate) \
+        ui.number('torque ramp rate', format='%.3f').props('outlined').bind_value(ctr_cfg.torque_ramp_rate) \
             .bind_visibility_from(input_mode.value, backward=lambda m: m == 6)
-        ui.number(label='mirror ratio', **params).bind_value(ctr_cfg.mirror_ratio) \
+        ui.number('mirror ratio', format='%.3f').props('outlined').bind_value(ctr_cfg.mirror_ratio) \
             .bind_visibility_from(input_mode.value, backward=lambda m: m == 7)
         ui.toggle({0: 'axis 0', 1: 'axis 1'}).bind_value(ctr_cfg.axis_to_mirror) \
             .bind_visibility_from(input_mode.value, backward=lambda m: m == 7)
@@ -150,3 +148,5 @@ with ui.row():
     for a, axis in enumerate([odrv.axis0, odrv.axis1]):
         with ui.card(), ui.column():
             axis_column(a, axis)
+
+ui.run()

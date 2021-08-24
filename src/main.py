@@ -47,6 +47,7 @@ def axis_column(a: int, axis: Any):
     ui.markdown(f'### Axis {a}')
 
     ctr_cfg = axis.controller.config
+    mtr_cfg = axis.motor.config
     enc_cfg = axis.encoder.config
     trp_cfg = axis.trap_traj.config
 
@@ -109,7 +110,9 @@ def axis_column(a: int, axis: Any):
         with ui.column():
 
             ui.number('vel_limit', format='%.3f').props('outlined').bind_value(ctr_cfg.vel_limit)
-            ui.number('bandwidth', format='%.3f').props('outlined').bind_value(enc_cfg.bandwidth)
+            ui.number('enc_bandwidth', format='%.3f').props('outlined').bind_value(enc_cfg.bandwidth)
+            ui.number('current_lim', format='%.1f').props('outlined').bind_value(mtr_cfg.current_lim)
+            ui.number('cur_bandwidth', format='%.3f').props('outlined').bind_value(mtr_cfg.current_control_bandwidth)
 
     input_mode = ui.toggle(input_modes).bind_value(ctr_cfg.input_mode)
     with ui.row():
@@ -149,4 +152,4 @@ with ui.row():
         with ui.card(), ui.column():
             axis_column(a, axis)
 
-ui.run()
+ui.run(title='ODrive Motor Tuning', reload=False)

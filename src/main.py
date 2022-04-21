@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-from nicegui import ui
-import odrive
-from odrive.utils import dump_errors
-from typing import Any
 from datetime import datetime
+from typing import Any
+
+import odrive
+from nicegui import ui
+from odrive.utils import dump_errors
 
 odrv = odrive.find_any()
 
@@ -41,6 +42,7 @@ with ui.row().classes('items-center'):
     ui.timer(1.0, lambda: voltage.set_text(f'{odrv.vbus_voltage:.2f} V'))
     ui.button(on_click=lambda: odrv.save_configuration()).props('icon=save flat round')
     ui.button(on_click=lambda: dump_errors(odrv, True)).props('icon=bug_report flat round')
+
 
 def axis_column(a: int, axis: Any):
 
@@ -146,6 +148,7 @@ def axis_column(a: int, axis: Any):
     def vel_push(): return vel_plot.push([datetime.now()], [[axis.controller.input_vel], [axis.encoder.vel_estimate]])
     vel_timer = ui.timer(0.05, vel_push)
     vel_check.bind_value_to(vel_plot.visible).bind_value_to(vel_timer.active)
+
 
 with ui.row():
     for a, axis in enumerate([odrv.axis0, odrv.axis1]):

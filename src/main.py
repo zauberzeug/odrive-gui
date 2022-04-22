@@ -63,10 +63,7 @@ def axis_column(a: int, axis: Any):
     with ui.row():
         with ui.card().bind_visibility_from(mode, 'value', value=1):
             ui.markdown('**Torque**')
-
-            torque = type('', (), {"value": 0})()
-            ui.number('input torque').bind_value(torque, 'value')
-
+            torque = ui.number('input torque', value=0)
             def send_torque(sign: int): axis.controller.input_torque = sign * float(torque.value)
             with ui.row():
                 ui.button(on_click=lambda: send_torque(-1)).props('round flat icon=remove')
@@ -75,10 +72,7 @@ def axis_column(a: int, axis: Any):
 
         with ui.card().bind_visibility_from(mode, 'value', value=2):
             ui.markdown('**Velocity**')
-
-            velocity = type('', (), {"value": 0})()
-            ui.number('input velocity').bind_value(velocity, 'value')
-
+            velocity = ui.number('input velocity', value=0)
             def send_velocity(sign: int): axis.controller.input_vel = sign * float(velocity.value)
             with ui.row():
                 ui.button(on_click=lambda: send_velocity(-1)).props('round flat icon=fast_rewind')
@@ -87,10 +81,7 @@ def axis_column(a: int, axis: Any):
 
         with ui.card().bind_visibility_from(mode, 'value', value=3):
             ui.markdown('**Position**')
-
-            position = type('', (), {"value": 0})()
-            ui.number('input position').bind_value(position, 'value')
-
+            position = ui.number('input position', value=0)
             def send_position(sign: int): axis.controller.input_pos = sign * float(position.value)
             with ui.row():
                 ui.button(on_click=lambda: send_position(-1)).props('round flat icon=skip_previous')
@@ -101,6 +92,8 @@ def axis_column(a: int, axis: Any):
             ui.number('pos_gain', format='%.3f').props('outlined').bind_value(ctr_cfg, 'pos_gain')
             ui.number('vel_gain', format='%.3f').props('outlined').bind_value(ctr_cfg, 'vel_gain')
             ui.number('vel_integrator_gain', format='%.3f').props('outlined').bind_value(ctr_cfg, 'vel_integrator_gain')
+            if hasattr(ctr_cfg, 'vel_differentiator_gain'):
+                ui.number('vel_differentiator_gain', format='%.3f').props('outlined').bind_value(ctr_cfg, 'vel_differentiator_gain')
 
         with ui.column():
             ui.number('vel_limit', format='%.3f').props('outlined').bind_value(ctr_cfg, 'vel_limit')
@@ -149,6 +142,12 @@ def axis_column(a: int, axis: Any):
     def vel_push(): vel_plot.push([datetime.now()], [[axis.controller.input_vel], [axis.encoder.vel_estimate]])
     vel_timer = ui.timer(0.05, vel_push)
     vel_check.bind_value_to(vel_plot, 'visible').bind_value_to(vel_timer, 'active')
+
+    tor_check = ui.checkbox('Torque plot', value=False)
+    tor_plot = ui.line_plot(n=2, update_every=10).with_legend(['input_torque', 'electrical_power'], loc='upper left', ncol=2)
+    def tor_push(): tor_plot.push([datetime.now()], [[axis.controller.input_torque], [axis.controller.electrical_power]])
+    tor_timer = ui.timer(0.05, tor_push)
+    tor_check.bind_value_to(tor_plot, 'visible').bind_value_to(tor_timer, 'active')
 
 
 with ui.row():

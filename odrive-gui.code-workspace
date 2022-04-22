@@ -11,9 +11,7 @@
       "ms-python.python",
       "himanoa.python-autopep8",
       "esbenp.prettier-vscode",
-      "littlefoxteam.vscode-python-test-adapter",
-      "cschleiden.vscode-github-actions",
-      "samuelcolvin.jinjahtml"
+      "littlefoxteam.vscode-python-test-adapter"
     ]
   }
 }

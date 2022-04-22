@@ -131,21 +131,30 @@ def axis_column(a: int, axis: Any):
             .bind_value(ctr_cfg, 'axis_to_mirror') \
             .bind_visibility_from(input_mode, 'value', value=7)
 
+    async def pos_push():
+        pos_plot.push([datetime.now()], [[axis.controller.input_pos], [axis.encoder.pos_estimate]])
+        await pos_plot.view.update()
+        return False
     pos_check = ui.checkbox('Position plot', value=True)
     pos_plot = ui.line_plot(n=2, update_every=10).with_legend(['input_pos', 'pos_estimate'], loc='upper left', ncol=2)
-    def pos_push(): pos_plot.push([datetime.now()], [[axis.controller.input_pos], [axis.encoder.pos_estimate]])
     pos_timer = ui.timer(0.05, pos_push)
     pos_check.bind_value_to(pos_plot, 'visible').bind_value_to(pos_timer, 'active')
 
+    async def vel_push():
+        vel_plot.push([datetime.now()], [[axis.controller.input_vel], [axis.encoder.vel_estimate]])
+        await vel_plot.view.update()
+        return False
     vel_check = ui.checkbox('Velocity plot', value=False)
     vel_plot = ui.line_plot(n=2, update_every=10).with_legend(['input_vel', 'vel_estimate'], loc='upper left', ncol=2)
-    def vel_push(): vel_plot.push([datetime.now()], [[axis.controller.input_vel], [axis.encoder.vel_estimate]])
     vel_timer = ui.timer(0.05, vel_push)
     vel_check.bind_value_to(vel_plot, 'visible').bind_value_to(vel_timer, 'active')
 
+    async def tor_push():
+        tor_plot.push([datetime.now()], [[axis.controller.input_torque], [axis.controller.electrical_power]])
+        await tor_plot.view.update()
+        return False
     tor_check = ui.checkbox('Torque plot', value=False)
     tor_plot = ui.line_plot(n=2, update_every=10).with_legend(['input_torque', 'electrical_power'], loc='upper left', ncol=2)
-    def tor_push(): tor_plot.push([datetime.now()], [[axis.controller.input_torque], [axis.controller.electrical_power]])
     tor_timer = ui.timer(0.05, tor_push)
     tor_check.bind_value_to(tor_plot, 'visible').bind_value_to(tor_timer, 'active')
 

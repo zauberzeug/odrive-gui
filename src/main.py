@@ -100,6 +100,8 @@ def axis_column(a: int, axis: Any):
             ui.number('enc_bandwidth', format='%.3f').props('outlined').bind_value(enc_cfg, 'bandwidth')
             ui.number('current_lim', format='%.1f').props('outlined').bind_value(mtr_cfg, 'current_lim')
             ui.number('cur_bandwidth', format='%.3f').props('outlined').bind_value(mtr_cfg, 'current_control_bandwidth')
+            ui.number('torque_lim', format='%.1f').props('outlined').bind_value(mtr_cfg, 'torque_lim')
+            ui.number('requested_cur_range', format='%.1f').props('outlined').bind_value(mtr_cfg, 'requested_current_range')
 
     input_mode = ui.toggle(input_modes).bind_value(ctr_cfg, 'input_mode')
     with ui.row():
@@ -166,6 +168,15 @@ def axis_column(a: int, axis: Any):
     iq_plot = ui.line_plot(n=2, update_every=10).with_legend(['Iq_setpoint', 'Iq_measured'], loc='upper left', ncol=2)
     iq_timer = ui.timer(0.05, iq_push)
     iq_check.bind_value_to(iq_plot, 'visible').bind_value_to(iq_timer, 'active')
+
+    async def t_push():
+        t_plot.push([datetime.now()], [[axis.motor.fet_thermistor.temperature]])
+        await t_plot.view.update()
+        return False
+    t_check = ui.checkbox('Temperature plot')
+    t_plot = ui.line_plot(n=1, update_every=10)
+    t_timer = ui.timer(0.05, t_push)
+    t_check.bind_value_to(t_plot, 'visible').bind_value_to(t_timer, 'active')
 
 
 with ui.row():

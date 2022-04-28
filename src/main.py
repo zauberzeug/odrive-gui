@@ -41,13 +41,17 @@ with ui.row().classes('items-center'):
     ui.label(f'FW {odrv.fw_version_major}.{odrv.fw_version_minor}.{odrv.fw_version_revision} ' +
              f'{"(dev)" if odrv.fw_version_unreleased else ""}')
     voltage = ui.label()
-    ui.timer(1.0, lambda: voltage.set_text(f'{odrv.vbus_voltage:.2f} V'))
+    ui.timer(1.0, lambda: voltage.set_text(f'{odrv.vbus_voltage:.2f} V') or False)
     ui.button(on_click=lambda: odrv.save_configuration()).props('icon=save flat round').tooltip('Save configuration')
     ui.button(on_click=lambda: dump_errors(odrv, True)).props('icon=bug_report flat round').tooltip('Dump errors')
 
 
 def axis_column(a: int, axis: Any):
     ui.markdown(f'### Axis {a}')
+
+    power = ui.label()
+    ui.timer(0.1, lambda: power.set_text(
+        f'{axis.motor.current_control.Iq_measured * axis.motor.current_control.v_current_control_integral_q:.1f} W') or False)
 
     ctr_cfg = axis.controller.config
     mtr_cfg = axis.motor.config

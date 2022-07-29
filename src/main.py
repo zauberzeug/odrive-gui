@@ -41,17 +41,17 @@ with ui.row().classes('items-center'):
     ui.label(f'FW {odrv.fw_version_major}.{odrv.fw_version_minor}.{odrv.fw_version_revision} ' +
              f'{"(dev)" if odrv.fw_version_unreleased else ""}')
     voltage = ui.label()
-    ui.timer(1.0, lambda: voltage.set_text(f'{odrv.vbus_voltage:.2f} V') or False)
+    ui.timer(1.0, lambda: voltage.set_text(f'{odrv.vbus_voltage:.2f} V'))
     ui.button(on_click=lambda: odrv.save_configuration()).props('icon=save flat round').tooltip('Save configuration')
     ui.button(on_click=lambda: dump_errors(odrv, True)).props('icon=bug_report flat round').tooltip('Dump errors')
 
 
-def axis_column(a: int, axis: Any):
+def axis_column(a: int, axis: Any) -> None:
     ui.markdown(f'### Axis {a}')
 
     power = ui.label()
     ui.timer(0.1, lambda: power.set_text(
-        f'{axis.motor.current_control.Iq_measured * axis.motor.current_control.v_current_control_integral_q:.1f} W') or False)
+        f'{axis.motor.current_control.Iq_measured * axis.motor.current_control.v_current_control_integral_q:.1f} W'))
 
     ctr_cfg = axis.controller.config
     mtr_cfg = axis.motor.config
@@ -68,7 +68,7 @@ def axis_column(a: int, axis: Any):
         with ui.card().bind_visibility_from(mode, 'value', value=1):
             ui.markdown('**Torque**')
             torque = ui.number('input torque', value=0)
-            def send_torque(sign: int): axis.controller.input_torque = sign * float(torque.value)
+            def send_torque(sign: int) -> None: axis.controller.input_torque = sign * float(torque.value)
             with ui.row():
                 ui.button(on_click=lambda: send_torque(-1)).props('round flat icon=remove')
                 ui.button(on_click=lambda: send_torque(0)).props('round flat icon=radio_button_unchecked')
@@ -77,7 +77,7 @@ def axis_column(a: int, axis: Any):
         with ui.card().bind_visibility_from(mode, 'value', value=2):
             ui.markdown('**Velocity**')
             velocity = ui.number('input velocity', value=0)
-            def send_velocity(sign: int): axis.controller.input_vel = sign * float(velocity.value)
+            def send_velocity(sign: int) -> None: axis.controller.input_vel = sign * float(velocity.value)
             with ui.row():
                 ui.button(on_click=lambda: send_velocity(-1)).props('round flat icon=fast_rewind')
                 ui.button(on_click=lambda: send_velocity(0)).props('round flat icon=stop')
@@ -86,7 +86,7 @@ def axis_column(a: int, axis: Any):
         with ui.card().bind_visibility_from(mode, 'value', value=3):
             ui.markdown('**Position**')
             position = ui.number('input position', value=0)
-            def send_position(sign: int): axis.controller.input_pos = sign * float(position.value)
+            def send_position(sign: int) -> None: axis.controller.input_pos = sign * float(position.value)
             with ui.row():
                 ui.button(on_click=lambda: send_position(-1)).props('round flat icon=skip_previous')
                 ui.button(on_click=lambda: send_position(0)).props('round flat icon=exposure_zero')
@@ -137,46 +137,41 @@ def axis_column(a: int, axis: Any):
             .bind_value(ctr_cfg, 'axis_to_mirror') \
             .bind_visibility_from(input_mode, 'value', value=7)
 
-    async def pos_push():
+    async def pos_push() -> None:
         pos_plot.push([datetime.now()], [[axis.controller.input_pos], [axis.encoder.pos_estimate]])
         await pos_plot.view.update()
-        return False
     pos_check = ui.checkbox('Position plot')
     pos_plot = ui.line_plot(n=2, update_every=10).with_legend(['input_pos', 'pos_estimate'], loc='upper left', ncol=2)
     pos_timer = ui.timer(0.05, pos_push)
     pos_check.bind_value_to(pos_plot, 'visible').bind_value_to(pos_timer, 'active')
 
-    async def vel_push():
+    async def vel_push() -> None:
         vel_plot.push([datetime.now()], [[axis.controller.input_vel], [axis.encoder.vel_estimate]])
         await vel_plot.view.update()
-        return False
     vel_check = ui.checkbox('Velocity plot')
     vel_plot = ui.line_plot(n=2, update_every=10).with_legend(['input_vel', 'vel_estimate'], loc='upper left', ncol=2)
     vel_timer = ui.timer(0.05, vel_push)
     vel_check.bind_value_to(vel_plot, 'visible').bind_value_to(vel_timer, 'active')
 
-    async def id_push():
+    async def id_push() -> None:
         id_plot.push([datetime.now()], [[axis.motor.current_control.Id_setpoint], [axis.motor.current_control.Id_measured]])
         await id_plot.view.update()
-        return False
     id_check = ui.checkbox('Id plot')
     id_plot = ui.line_plot(n=2, update_every=10).with_legend(['Id_setpoint', 'Id_measured'], loc='upper left', ncol=2)
     id_timer = ui.timer(0.05, id_push)
     id_check.bind_value_to(id_plot, 'visible').bind_value_to(id_timer, 'active')
 
-    async def iq_push():
+    async def iq_push() -> None:
         iq_plot.push([datetime.now()], [[axis.motor.current_control.Iq_setpoint], [axis.motor.current_control.Iq_measured]])
         await iq_plot.view.update()
-        return False
     iq_check = ui.checkbox('Iq plot')
     iq_plot = ui.line_plot(n=2, update_every=10).with_legend(['Iq_setpoint', 'Iq_measured'], loc='upper left', ncol=2)
     iq_timer = ui.timer(0.05, iq_push)
     iq_check.bind_value_to(iq_plot, 'visible').bind_value_to(iq_timer, 'active')
 
-    async def t_push():
+    async def t_push() -> None:
         t_plot.push([datetime.now()], [[axis.motor.fet_thermistor.temperature]])
         await t_plot.view.update()
-        return False
     t_check = ui.checkbox('Temperature plot')
     t_plot = ui.line_plot(n=1, update_every=10)
     t_timer = ui.timer(0.05, t_push)

@@ -27,6 +27,7 @@ async def startup():
         controls(odrv)
     except TimeoutError:
         show_message('# could not find any odrive')
+    await message.page.update()
 
 ui.on_startup(startup)
 

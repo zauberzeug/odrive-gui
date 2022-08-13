@@ -14,5 +14,5 @@ docker run --privileged -p 80:8080 --name odrive -it zauberzeug/odrive-gui:lates
 ```
 
 and access the interface at http://localhost/.
-It is convenient to use the `--privileged` parameter to allow access to USB.
-But you can also provide only the device you want to use.
+It is convenient (but insecure) to use the `--privileged` parameter to allow access to USB.
+You can also provide only the device you want to use with `--device=/dev/ttyUSB0` or similar.

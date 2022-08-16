@@ -7,12 +7,24 @@ It also comes packaged in a Docker image for easy usage.
 
 ## Usage
 
-Just start the container with
+Install required packages
 
 ```bash
-docker run --privileged -p 80:8080 --name odrive -it zauberzeug/odrive-gui:latest
+python3 -m pip install requirements.txt
 ```
 
-and access the interface at http://localhost/.
+and start the app:
+
+```bash
+python3 src/main.py
+```
+
+Or just start the Docker container with
+
+```bash
+docker run -p 8080:8080 --name odrive --rm -it --privileged zauberzeug/odrive-gui:latest
+```
+
+and access the interface at http://localhost:8080/.
 It is convenient (but insecure) to use the `--privileged` parameter to allow access to USB.
 You can also provide only the device you want to use with `--device=/dev/ttyUSB0` or similar.

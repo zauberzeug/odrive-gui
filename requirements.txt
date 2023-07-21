@@ -1,2 +1,2 @@
-nicegui==0.8.4
-odrive==0.6.2.post0
+nicegui>=1.3.0
+odrive>=0.6.2

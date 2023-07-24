@@ -12,6 +12,7 @@ ui.colors(primary='#6e93d6')
 message = ui.markdown()
 container = ui.column()
 
+
 def show_message(text: str) -> None:
     message.content = text
     print(text, flush=True)

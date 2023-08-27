@@ -44,9 +44,21 @@ def controls(odrv):
     def axis_column(a: int, axis: Any) -> None:
         ui.markdown(f'### Axis {a}')
 
-        power = ui.label()
-        ui.timer(0.1, lambda: power.set_text(
-            f'{axis.motor.current_control.Iq_measured * axis.motor.current_control.v_current_control_integral_q:.1f} W'))
+        with ui.row().classes('w-full justify-between items-center'):
+            with ui.column():
+                power = ui.label()
+            with ui.column():
+                button = ui.button(on_click=lambda: axis.clear_errors()).props('icon=bug_report flat round').tooltip('Clear errors') if hasattr(axis, 'clear_errors') else False
+
+        def update():
+            power.set_text(f'{axis.motor.current_control.Iq_measured * axis.motor.current_control.v_current_control_integral_q:.1f} W')
+            if button :
+                if axis.error == 0 :
+                    button.props('disabled')
+                else:
+                    button.props(remove='disabled')
+
+        ui.timer(0.1, update)
 
         ctr_cfg = axis.controller.config
         mtr_cfg = axis.motor.config

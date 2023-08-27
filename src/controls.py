@@ -39,7 +39,7 @@ def controls(odrv):
         voltage = ui.label()
         ui.timer(1.0, lambda: voltage.set_text(f'{odrv.vbus_voltage:.2f} V'))
         ui.button(on_click=lambda: odrv.save_configuration()).props('icon=save flat round').tooltip('Save configuration')
-        ui.button(on_click=lambda: dump_errors(odrv, True)).props('icon=bug_report flat round').tooltip('Dump errors')
+        ui.button(on_click=lambda: dump_errors(odrv, hasattr(odrv, 'clear_errors'))).props('icon=bug_report flat round').tooltip('Dump and clear errors')
 
     def axis_column(a: int, axis: Any) -> None:
         ui.markdown(f'### Axis {a}')

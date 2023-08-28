@@ -32,19 +32,20 @@ def controls(odrv):
     ui.markdown('## ODrive GUI')
 
     with ui.row().classes('w-full justify-between items-center'):
-        with ui.column():
-            with ui.row():
-                ui.label(f'SN {hex(odrv.serial_number).removeprefix("0x").upper()}')
-                ui.label(f'HW {odrv.hw_version_major}.{odrv.hw_version_minor}.{odrv.hw_version_variant}')
-                ui.label(f'FW {odrv.fw_version_major}.{odrv.fw_version_minor}.{odrv.fw_version_revision} ' +
-                         f'{"(dev)" if odrv.fw_version_unreleased else ""}')
-                voltage = ui.label()
-                ui.timer(1.0, lambda: voltage.set_text(f'{odrv.vbus_voltage:.2f} V'))
-        with ui.column():
-            with ui.row():
-                ui.button(on_click=lambda: odrv.save_configuration()).props('icon=save flat round').tooltip('Save configuration')
-                ui.button(on_click=lambda: dump_errors(odrv, hasattr(odrv, 'clear_errors'))) \
-                    .props('icon=bug_report flat round').tooltip('Dump and clear errors')
+        with ui.row():
+            ui.label(f'SN {hex(odrv.serial_number).removeprefix("0x").upper()}')
+            ui.label(f'HW {odrv.hw_version_major}.{odrv.hw_version_minor}.{odrv.hw_version_variant}')
+            ui.label(f'FW {odrv.fw_version_major}.{odrv.fw_version_minor}.{odrv.fw_version_revision} ' +
+                     f'{"(dev)" if odrv.fw_version_unreleased else ""}')
+            voltage = ui.label()
+            ui.timer(1.0, lambda: voltage.set_text(f'{odrv.vbus_voltage:.2f} V'))
+        with ui.row():
+            ui.button(on_click=lambda: odrv.save_configuration()) \
+                .props('icon=save flat round') \
+                .tooltip('Save configuration')
+            ui.button(on_click=lambda: dump_errors(odrv, hasattr(odrv, 'clear_errors'))) \
+                .props('icon=bug_report flat round') \
+                .tooltip('Dump and clear errors')
 
     def axis_column(a: int, axis: Any) -> None:
         ui.markdown(f'### Axis {a}')

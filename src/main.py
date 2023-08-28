@@ -16,7 +16,7 @@ ui.colors(primary='#6e93d6')
 
 ui.markdown('## ODrive GUI')
 message = ui.markdown()
-container = ui.column()
+container = ui.row()
 
 
 def show_message(text: str) -> None:
@@ -46,7 +46,8 @@ async def startup() -> None:
         message.visible = False
         with container:
             for odrv in odrives:
-                controls(odrv)
+                with ui.column():
+                    controls(odrv)
 
 app.on_startup(startup)
 

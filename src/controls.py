@@ -29,8 +29,6 @@ def controls(odrv):
         8: 'loop',
     }
 
-    ui.markdown('## ODrive GUI')
-
     with ui.row().classes('w-full justify-between items-center'):
         with ui.row():
             ui.label(f'SN {hex(odrv.serial_number).removeprefix("0x").upper()}')
@@ -182,6 +180,8 @@ def controls(odrv):
         t_check.bind_value_to(t_plot, 'visible').bind_value_to(t_timer, 'active')
 
     with ui.row():
-        for a, axis in enumerate([odrv.axis0, odrv.axis1]):
+        # hide axi that are not calibrated (they can not be controlled anyway), in favor of possible other odrives
+        enabledAxi = filter(lambda axis: axis.motor.is_calibrated, [odrv.axis0, odrv.axis1])
+        for a, axis in enumerate(enabledAxi):
             with ui.card(), ui.column():
                 axis_column(a, axis)

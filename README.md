@@ -10,7 +10,7 @@ It also comes packaged in a Docker image for easy usage.
 Install required packages
 
 ```bash
-python3 -m pip install requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 and start the app:

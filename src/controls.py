@@ -43,14 +43,23 @@ def controls(odrv):
         with ui.column():
             with ui.row():
                 ui.button(on_click=lambda: odrv.save_configuration()).props('icon=save flat round').tooltip('Save configuration')
-                ui.button(on_click=lambda: dump_errors(odrv, hasattr(odrv, 'clear_errors'))).props('icon=bug_report flat round').tooltip('Dump and clear errors')
+                ui.button(on_click=lambda: dump_errors(odrv, hasattr(odrv, 'clear_errors'))) \
+                    .props('icon=bug_report flat round').tooltip('Dump and clear errors')
 
     def axis_column(a: int, axis: Any) -> None:
         ui.markdown(f'### Axis {a}')
 
-        power = ui.label()
-        ui.timer(0.1, lambda: power.set_text(
-            f'{axis.motor.current_control.Iq_measured * axis.motor.current_control.v_current_control_integral_q:.1f} W'))
+        with ui.row().classes('w-full justify-between items-center'):
+            power = ui.label()
+            button = ui.button(on_click=lambda: axis.clear_errors()) \
+                .props('icon=bug_report flat round').tooltip('Clear errors')
+            button.set_visibility(hasattr(axis, 'clear_errors'))
+
+        def update():
+            power.set_text(f'{axis.motor.current_control.Iq_measured * axis.motor.current_control.v_current_control_integral_q:.1f} W')
+            button.set_enabled(axis.error != 0)
+
+        ui.timer(0.1, update)
 
         ctr_cfg = axis.controller.config
         mtr_cfg = axis.motor.config

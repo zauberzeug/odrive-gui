@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import asyncio
 import functools
+import logging
 
 import libusb_package
 import odrive
@@ -8,6 +9,8 @@ import usb.util
 from nicegui import app, ui
 
 from controls import controls
+
+logging.getLogger("nicegui").setLevel(logging.ERROR)
 
 ui.colors(primary='#6e93d6')
 

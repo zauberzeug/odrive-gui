@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 import asyncio
-import functools
 import logging
 
-import libusb_package
 import odrive
-import usb.util
 from nicegui import app, ui
 
 from controls import controls
@@ -23,31 +20,42 @@ def show_message(text: str) -> None:
     message.content = text
     print(text, flush=True)
 
-# List all all connected odrives
-devices = list(libusb_package.find(idVendor=0x1209, idProduct=0x0D32, find_all=True))
-if len(devices) == 0:
-    print("No devices found")
-    exit()
+known_devices = {}
+active_devices = {}
 
-# Get the serials and sort them so that we get a predictable display order
-serials = sorted(list(map(lambda device: usb.util.get_string(device, device.iSerialNumber), devices)))
+async def discovery_loop():
+    show_message('# Connecting to ODrives...')
+    odrive.start_discovery(odrive.default_usb_search_path)
+    while True:
+        signal = odrive.connected_devices_changed
+        if len(odrive.connected_devices) > len(known_devices):
+            # A device is connected for which no controller is currently active
+            device = odrive.connected_devices[-1]
+            serial = hex(device.serial_number)
+            print(f'Adding ODrive {serial}')
+            with container:
+                with ui.column() as element:
+                    controls(device)
+            known_devices[serial] = element
+            # Move it to the correct position
+            ordered_devices = sorted(list(known_devices.keys()))
+            target_index = ordered_devices.index(serial)
+            element.move(target_index=target_index)
+            message.visible = False
+        elif len(odrive.connected_devices) < len(known_devices):
+            # a device for which we're rendering an active controller is not connected anymore
+            # find out which one
+            remaining_serials = remaining_serials = [hex(device.serial_number) for device in odrive.connected_devices]
+            lost_serials = [serial_number for serial_number in known_devices if serial_number not in remaining_serials]
+            # deactivate the controllers for the lost devices
+            for lost_serial in lost_serials:
+                print(f'Removing ODrive {lost_serial}')
+                container.remove(known_devices[lost_serial])
+                del known_devices[lost_serial]
+        await asyncio.wrap_future(signal)
 
 async def startup() -> None:
-        show_message('# Connecting to ODrives...')
-        odrives = []
-        for serial in serials:
-            try:
-                loop = asyncio.get_running_loop()
-                odrv = await loop.run_in_executor(None, functools.partial(odrive.find_any, serial_number=serial, timeout=15))
-                print("have odrive " + hex(odrv.serial_number))
-                odrives.append(odrv)
-            except TimeoutError:
-                show_message(f'# Could not connect to ODrive {serial}')
-        message.visible = False
-        with container:
-            for odrv in odrives:
-                with ui.column():
-                    controls(odrv)
+        asyncio.create_task(discovery_loop())
 
 app.on_startup(startup)
 

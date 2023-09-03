@@ -29,6 +29,15 @@ def controls(odrv):
         8: 'loop',
     }
 
+    def reboot():
+        try:
+            odrv.reboot()
+        except Exception as err:
+            if (type(err).__name__ == "ObjectLostError"):
+                pass
+            else:
+                raise err
+
     with ui.row().classes('w-full justify-between items-center'):
         with ui.row():
             ui.label(f'SN {hex(odrv.serial_number).removeprefix("0x").upper()}')
@@ -44,6 +53,9 @@ def controls(odrv):
             ui.button(on_click=lambda: dump_errors(odrv, hasattr(odrv, 'clear_errors'))) \
                 .props('icon=bug_report flat round') \
                 .tooltip('Dump and clear errors')
+            ui.button(on_click=reboot) \
+                .props('icon=restart_alt flat round') \
+                .tooltip('Reboot odrive')
 
     def axis_column(a: int, axis: Any) -> None:
         ui.markdown(f'### Axis {a}')

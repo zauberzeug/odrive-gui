@@ -33,8 +33,11 @@ def controls(odrv):
     def reboot():
         try:
             odrv.reboot()
-        except fibre.ObjectLostError:
-            pass
+        except Exception as err:
+            if type(err).__name__ == 'ObjectLostError':
+                pass
+            else:
+                raise err
 
     with ui.row().classes('w-full justify-between items-center'):
         with ui.row():

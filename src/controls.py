@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any
 
 from nicegui import ui
+from odrive.pyfibre import fibre
 from odrive.utils import dump_errors
 
 
@@ -32,11 +33,8 @@ def controls(odrv):
     def reboot():
         try:
             odrv.reboot()
-        except Exception as err:
-            if (type(err).__name__ == "ObjectLostError"):
-                pass
-            else:
-                raise err
+        except fibre.ObjectLostError:
+            pass
 
     with ui.row().classes('w-full justify-between items-center'):
         with ui.row():
@@ -67,6 +65,8 @@ def controls(odrv):
             button.set_visibility(hasattr(axis, 'clear_errors'))
 
         def update():
+            if axis.__class__ == fibre.libfibre.EmptyInterface:
+                return
             power.set_text(f'{axis.motor.current_control.Iq_measured * axis.motor.current_control.v_current_control_integral_q:.1f} W')
             button.set_enabled(axis.error != 0)
 
@@ -192,8 +192,8 @@ def controls(odrv):
         t_check.bind_value_to(t_plot, 'visible').bind_value_to(t_timer, 'active')
 
     with ui.row():
-        # hide axi that are not calibrated (they can not be controlled anyway), in favor of possible other odrives
-        enabledAxi = filter(lambda axis: axis.motor.is_calibrated, [odrv.axis0, odrv.axis1])
-        for a, axis in enumerate(enabledAxi):
+        for a, axis in enumerate([odrv.axis0, odrv.axis1]):
+            if not axis.motor.is_calibrated:
+                continue
             with ui.card(), ui.column():
                 axis_column(a, axis)

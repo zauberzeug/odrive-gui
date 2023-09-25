@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any
 
 from nicegui import ui
+from odrive.pyfibre import fibre
 from odrive.utils import dump_errors
 
 
@@ -29,7 +30,14 @@ def controls(odrv):
         8: 'loop',
     }
 
-    ui.markdown('## ODrive GUI')
+    def reboot():
+        try:
+            odrv.reboot()
+        except Exception as err:
+            if type(err).__name__ == 'ObjectLostError':
+                pass
+            else:
+                raise err
 
     with ui.row().classes('w-full justify-between items-center'):
         with ui.row():
@@ -46,6 +54,9 @@ def controls(odrv):
             ui.button(on_click=lambda: dump_errors(odrv, hasattr(odrv, 'clear_errors'))) \
                 .props('icon=bug_report flat round') \
                 .tooltip('Dump and clear errors')
+            ui.button(on_click=reboot) \
+                .props('icon=restart_alt flat round') \
+                .tooltip('Reboot odrive')
 
     def axis_column(a: int, axis: Any) -> None:
         ui.markdown(f'### Axis {a}')
@@ -57,6 +68,8 @@ def controls(odrv):
             button.set_visibility(hasattr(axis, 'clear_errors'))
 
         def update():
+            if axis.__class__ == fibre.libfibre.EmptyInterface:
+                return
             power.set_text(f'{axis.motor.current_control.Iq_measured * axis.motor.current_control.v_current_control_integral_q:.1f} W')
             button.set_enabled(axis.error != 0)
 
@@ -183,5 +196,7 @@ def controls(odrv):
 
     with ui.row():
         for a, axis in enumerate([odrv.axis0, odrv.axis1]):
+            if not axis.motor.is_calibrated:
+                continue
             with ui.card(), ui.column():
                 axis_column(a, axis)

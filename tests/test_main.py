@@ -10,7 +10,7 @@ This is the path that silently broke when NiceGUI 3.x turned module-scope UI int
 import asyncio
 
 import pytest
-from mock_odrive import lose_mock_odrive, make_mock_odrive, set_connected_devices
+from mock_odrive import arrive_mid_scan, lose_mock_odrive, make_mock_odrive, set_connected_devices
 from nicegui import ui
 from nicegui.testing import User
 
@@ -41,6 +41,20 @@ async def test_panels_follow_hotplug(user: User) -> None:
     set_connected_devices([])
     await user.should_see('Waiting for ODrive devices to connect')
     await user.should_not_see('SN 1111')
+
+
+async def test_device_arriving_during_the_scan_is_not_missed(user: User) -> None:
+    """odrive installs a *new* ``connected_devices_changed`` future before resolving the old
+    one, so a device enumerating while the loop scans resolves a future the loop no longer
+    holds. Unless the loop captured the signal before scanning, that wake-up is lost: the
+    loop awaits the replacement forever and the second panel never appears."""
+    first = make_mock_odrive(serial=0x1111)
+    trap = arrive_mid_scan(first, make_mock_odrive(serial=0x2222))
+    set_connected_devices([first])  # wakes the loop, which then plugs 2222 in mid-scan
+    await user.open('/')
+    await user.should_see('SN 2222')
+    await user.should_see('SN 1111')
+    assert trap['fired_mid_scan']  # it really raced the scan, not an ordinary hot-plug
 
 
 async def test_lost_device_drops_only_its_panel(user: User) -> None:

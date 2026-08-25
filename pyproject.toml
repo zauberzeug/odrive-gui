@@ -1,6 +1,6 @@
 [project]
 name = "odrive-gui"
-version = "0.1.0"
+version = "0.2.0"
 description = "A web-based GUI to tweak and debug the ODrive motor controller"
 readme = "README.md"
 requires-python = ">=3.10"  # NiceGUI 3.x requires >=3.10

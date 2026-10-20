@@ -3,7 +3,7 @@ name = "odrive-gui"
 version = "0.2.0"
 description = "A web-based GUI to tweak and debug the ODrive motor controller"
 readme = "README.md"
-requires-python = ">=3.10"  # NiceGUI 3.x requires >=3.10
+requires-python = ">=3.10" # NiceGUI 3.x requires >=3.10
 license = { text = "MIT" }
 dependencies = [
     "nicegui>=3.0",
@@ -14,6 +14,8 @@ dependencies = [
     # against the PyPI wheels; open-ended >=0.6.2 resolved to 0.6.11.post0 and crashed on startup).
     "odrive>=0.6.2,<0.6.10",
     "matplotlib>=3.7.2",
+    "aiohttp>=3.14.4",       # https://github.com/zauberzeug/odrive-gui/security/dependabot/61, for nicegui and odrive
+    "multidict>=6.9.1",      # https://github.com/zauberzeug/odrive-gui/security/dependabot/58, for aiohttp and yarl
 ]
 
 [project.urls]
@@ -21,7 +23,7 @@ Homepage = "https://github.com/zauberzeug/odrive-gui"
 
 [dependency-groups]
 dev = [
-    "ruff==0.15.19",  # pinned: single source of truth for the lint/format gate that CI runs
+    "ruff==0.15.19",        # pinned: single source of truth for the lint/format gate that CI runs
     "mypy>=1.10",
     "pytest>=8.0",
     "pytest-asyncio>=0.23",

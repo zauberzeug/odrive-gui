@@ -16,6 +16,9 @@ dependencies = [
     "matplotlib>=3.7.2",
     "aiohttp>=3.14.4",       # https://github.com/zauberzeug/odrive-gui/security/dependabot/61, for nicegui and odrive
     "multidict>=6.9.1",      # https://github.com/zauberzeug/odrive-gui/security/dependabot/58, for aiohttp and yarl
+    "pillow>=13.0.0",        # https://github.com/zauberzeug/odrive-gui/security/dependabot/104, for matplotlib
+    "setuptools>=84.1.0",    # https://github.com/zauberzeug/odrive-gui/security/dependabot/102, for odrive
+    "certifi>=2026.10.19",   # https://github.com/zauberzeug/odrive-gui/security/dependabot/62, for nicegui and httpx
 ]
 
 [project.urls]

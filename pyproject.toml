@@ -3,7 +3,7 @@ name = "odrive-gui"
 version = "0.2.0"
 description = "A web-based GUI to tweak and debug the ODrive motor controller"
 readme = "README.md"
-requires-python = ">=3.10" # NiceGUI 3.x requires >=3.10
+requires-python = ">=3.11" # Python 3.10 is end-of-life
 license = { text = "MIT" }
 dependencies = [
     "nicegui>=3.0",
@@ -37,7 +37,7 @@ package = false
 [tool.ruff]
 # 150 matches the repo's established autopep8 convention (see .vscode/settings.json).
 line-length = 150
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "Q"]
@@ -50,9 +50,9 @@ docstring-quotes = "double"
 quote-style = "single"
 
 [tool.mypy]
-# Check against the advertised floor (requires-python >= 3.10) so 3.11/3.12-only stdlib
-# usage is caught here — ruff's py310 target only catches 3.11+ *syntax*, not new stdlib APIs.
-python_version = "3.10"
+# Check against the advertised floor (requires-python >= 3.11) so 3.12/3.13-only stdlib
+# usage is caught here — ruff's py311 target only catches 3.12+ *syntax*, not new stdlib APIs.
+python_version = "3.11"
 mypy_path = "src"
 # the GUI talks to a live `fibre` remote object whose attributes are resolved at
 # runtime, so the device side is intentionally dynamically typed.
@@ -61,9 +61,9 @@ check_untyped_defs = true
 
 # numpy is only a transitive dependency (matplotlib, via ui.line_plot); src never imports it.
 # On Python 3.12+ its installed stub uses a `type` statement that mypy cannot parse under
-# python_version = "3.10" (`numpy/__init__.pyi: Type statement is only supported in Python 3.12`),
+# python_version = "3.11" (`numpy/__init__.pyi: Type statement is only supported in Python 3.12`),
 # so skip following it rather than raise the project's floor for a stub we don't use.
-# (Passes without this on 3.10/3.11 interpreters, which is why it looked redundant once.)
+# (Passes without this on 3.11 interpreters, which is why it looked redundant once.)
 [[tool.mypy.overrides]]
 module = "numpy.*"
 follow_imports = "skip"

@@ -214,6 +214,11 @@ def install_odrive_stub() -> None:
     fibre.ObjectLostError = type('ObjectLostError', (Exception,), {})  # type: ignore[attr-defined]
     fibre.libfibre = types.SimpleNamespace(EmptyInterface=type('EmptyInterface', (), {}))
     pyfibre.fibre = fibre
+    # ``import odrive`` also loads libfibre as top-level ``fibre``, and the device objects come
+    # from that copy, so its classes are not ``odrive.pyfibre.fibre``'s -- keep them distinct here.
+    device_fibre = types.ModuleType('fibre')
+    device_fibre.ObjectLostError = type('ObjectLostError', (Exception,), {})  # type: ignore[attr-defined]
+    device_fibre.libfibre = types.SimpleNamespace(EmptyInterface=type('EmptyInterface', (), {}))  # type: ignore[attr-defined]
     utils = types.ModuleType('odrive.utils')
     utils.dump_errors = lambda odrv, clear=False: None  # type: ignore[attr-defined]
     odrive.pyfibre = pyfibre  # type: ignore[attr-defined]
@@ -224,6 +229,7 @@ def install_odrive_stub() -> None:
             'odrive.pyfibre': pyfibre,
             'odrive.pyfibre.fibre': fibre,
             'odrive.utils': utils,
+            'fibre': device_fibre,
         }
     )
 
@@ -248,10 +254,15 @@ def lose_mock_odrive(device: object) -> None:
     """Make ``device`` behave like a fibre object whose USB connection was lost.
 
     Mirrors ``RemoteObject._destroy()``: the instance's class is swapped to
-    ``EmptyInterface``, so every attribute read from now on raises ``AttributeError``.
+    ``EmptyInterface`` (of the top-level ``fibre`` copy, as on hardware), so every attribute
+    read from now on raises ``AttributeError``.
     """
-    fibre = sys.modules['odrive.pyfibre.fibre']
-    device.__class__ = fibre.libfibre.EmptyInterface  # type: ignore[attr-defined]
+    device.__class__ = sys.modules['fibre'].libfibre.EmptyInterface  # type: ignore[attr-defined]
+
+
+def object_lost_error() -> Exception:
+    """The ``ObjectLostError`` a real device raises when it drops off the bus mid-call."""
+    return sys.modules['fibre'].ObjectLostError('the object disappeared')  # type: ignore[attr-defined]
 
 
 def reset_odrive_stub() -> None:

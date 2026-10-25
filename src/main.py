@@ -13,9 +13,8 @@ from typing import Any
 
 import odrive
 from nicegui import app, ui
-from odrive.pyfibre import fibre
 
-from controls import controls
+from controls import EMPTY_INTERFACES, LOST_ERRORS, controls
 from theme import apply_theme, header
 
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s %(levelname)s %(message)s')
@@ -40,9 +39,9 @@ def is_lost(e: Exception) -> bool:
     plain ``AttributeError``. Only an ``AttributeError`` on such a lost object counts;
     a typo'd attribute path in ``controls()`` still surfaces.
     """
-    if isinstance(e, fibre.ObjectLostError):
+    if isinstance(e, LOST_ERRORS):
         return True
-    return isinstance(e, AttributeError) and isinstance(e.obj, fibre.libfibre.EmptyInterface)
+    return isinstance(e, AttributeError) and isinstance(e.obj, EMPTY_INTERFACES)
 
 
 @ui.refreshable

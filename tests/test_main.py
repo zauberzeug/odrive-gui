@@ -11,7 +11,7 @@ import asyncio
 import threading
 
 import pytest
-from mock_odrive import arrive_mid_scan, lose_mock_odrive, make_mock_odrive, set_connected_devices
+from mock_odrive import arrive_mid_scan, lose_mock_odrive, make_mock_odrive, object_lost_error, set_connected_devices
 from nicegui import ui
 from nicegui.testing import User
 
@@ -249,3 +249,21 @@ async def test_idle_is_requested_even_while_idle_is_the_state_shown(user: User) 
     gate.set()
     await drain()
     assert [state for state, _ in seen] == [8, 1]
+
+
+async def test_a_device_dropping_off_mid_save_or_reboot_is_not_an_error(user: User) -> None:
+    """This firmware reboots on save, and reboot drops the device: both calls then raise the
+    device's ``ObjectLostError``. That comes from ``odrive``'s second, top-level copy of
+    libfibre, not ``odrive.pyfibre.fibre``, and must not be logged as a failed write."""
+    dev = make_mock_odrive(two_axes=False)
+
+    def lost() -> None:
+        raise object_lost_error()
+
+    dev.save_configuration = lost
+    dev.reboot = lost
+    set_connected_devices([dev])
+    await user.open('/')
+    await user.should_see('Axis 0')
+    user.find(ui.button).trigger('click')  # includes save and reboot; any ERROR log fails the test
+    await drain()

@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 import logging
+import sys
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
@@ -25,6 +26,11 @@ from odrive.pyfibre import fibre
 from odrive.utils import dump_errors
 
 log = logging.getLogger('odrive_gui')
+
+# ``import odrive`` loads libfibre a second time, as top-level ``fibre``, and the device objects
+# come from that copy: its ObjectLostError and EmptyInterface are other classes than ours.
+LOST_ERRORS = (fibre.ObjectLostError, sys.modules['fibre'].ObjectLostError)
+EMPTY_INTERFACES = (fibre.libfibre.EmptyInterface, sys.modules['fibre'].libfibre.EmptyInterface)
 
 MODES: dict[int, str] = {
     0: 'Voltage',
@@ -57,7 +63,7 @@ def _lost(obj: Any) -> bool:
     which every attribute read raises ``AttributeError``. The panel's timers can fire in
     the short window before the discovery loop deletes the panel, so they check first.
     """
-    return obj.__class__ is fibre.libfibre.EmptyInterface
+    return obj.__class__ in EMPTY_INTERFACES
 
 
 # Every device read or write is a blocking USB round-trip. After the panel is built, all of
@@ -72,7 +78,7 @@ def _send(obj: Any, fn: Callable[[], Any]) -> None:
 
     def done(future: Future) -> None:
         e = future.exception()
-        if e is not None and not (isinstance(e, fibre.ObjectLostError) or _lost(obj)):
+        if e is not None and not (isinstance(e, LOST_ERRORS) or _lost(obj)):
             log.error('ODrive write failed', exc_info=e)
 
     _usb.submit(fn).add_done_callback(done)
@@ -83,7 +89,7 @@ async def _on_usb(obj: Any, fn: Callable[[], Any]) -> Any:
     try:
         return await asyncio.get_running_loop().run_in_executor(_usb, fn)
     except Exception as e:
-        if isinstance(e, fibre.ObjectLostError) or _lost(obj):
+        if isinstance(e, LOST_ERRORS) or _lost(obj):
             return None
         raise
 
@@ -133,7 +139,7 @@ def controls(odrv: Any) -> None:
     def reboot() -> None:
         try:
             odrv.reboot()
-        except fibre.ObjectLostError:
+        except LOST_ERRORS:
             # the device drops off the USB bus mid-reboot; that specific loss is expected.
             # do NOT touch `odrv` here — a live read on the just-disconnected device raises again.
             log.info('ODrive %x rebooting (connection dropped as expected)', serial)

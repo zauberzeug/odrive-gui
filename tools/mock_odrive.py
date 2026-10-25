@@ -15,27 +15,46 @@ Two entry points:
 
 from __future__ import annotations
 
+import collections
 import concurrent.futures
 import math
+import os
 import sys
+import threading
 import time
 import types
 
 _T0 = time.time()
+
+# device attribute reads per thread name, so tests can tell which thread talks to the "bus"
+READS: collections.Counter[str] = collections.Counter()
+# a real read is a USB round-trip; MOCK_ODRIVE_READ_MS makes every mock read cost one too
+READ_LATENCY = float(os.environ.get('MOCK_ODRIVE_READ_MS', '0')) / 1000
 
 
 def _wave(period: float, amp: float, offset: float = 0.0) -> float:
     return offset + amp * math.sin(2 * math.pi * (time.time() - _T0) / period)
 
 
-class _Config:
+class _Recorded:
+    """Counts every public attribute read (see ``READS``), each costing ``READ_LATENCY``."""
+
+    def __getattribute__(self, name: str):
+        if not name.startswith('_'):
+            READS[threading.current_thread().name] += 1
+            if READ_LATENCY:
+                time.sleep(READ_LATENCY)
+        return object.__getattribute__(self, name)
+
+
+class _Config(_Recorded):
     """A plain settable namespace -- NiceGUI bindings get/set attributes here."""
 
     def __init__(self, **kw: object) -> None:
         self.__dict__.update(kw)
 
 
-class _CurrentControl:
+class _CurrentControl(_Recorded):
     Iq_setpoint = 0.4
     Id_setpoint = 0.0
 
@@ -52,7 +71,7 @@ class _CurrentControl:
         return _wave(3.0, 0.2, 1.1)
 
 
-class _Thermistor:
+class _Thermistor(_Recorded):
     """The FET thermistor, mirroring ``odrv.axisN.motor.fet_thermistor``.
 
     Exposes only ``.temperature`` — deliberately its own class rather than aliasing the
@@ -66,18 +85,18 @@ class _Thermistor:
         return _wave(20.0, 4.0, 32.0)
 
 
-class _MockAxis:
+class _MockAxis(_Recorded):
     def __init__(self, calibrated: bool = True, control_mode: int = 2) -> None:
         self.error = 0
         self.requested_state = 1
         self.current_state = 1
-        self.motor = types.SimpleNamespace(
+        self.motor = _Config(
             is_calibrated=calibrated,
             current_control=_CurrentControl(),  # lives on the motor only, as on hardware
             config=_Config(current_lim=10.0, current_control_bandwidth=1000.0, torque_lim=float('inf'), requested_current_range=60.0),
             fet_thermistor=_Thermistor(),
         )
-        self.controller = types.SimpleNamespace(
+        self.controller = _Config(
             input_torque=0.0,
             input_vel=0.0,
             input_pos=0.0,
@@ -98,13 +117,13 @@ class _MockAxis:
             ),
         )
         self.encoder = _Encoder()
-        self.trap_traj = types.SimpleNamespace(config=_Config(vel_limit=2.0, accel_limit=0.5, decel_limit=0.5))
+        self.trap_traj = _Config(config=_Config(vel_limit=2.0, accel_limit=0.5, decel_limit=0.5))
 
     def clear_errors(self) -> None:
         self.error = 0
 
 
-class _Encoder:
+class _Encoder(_Recorded):
     """Encoder with a settable config and animated position/velocity estimates."""
 
     def __init__(self) -> None:
@@ -128,7 +147,7 @@ def make_mock_odrive(serial: int = 0x208E39855253, two_axes: bool = True, contro
     ax0 = _MockAxis(calibrated=True, control_mode=control_mode)
     ax1 = _MockAxis(calibrated=two_axes, control_mode=control_mode)
 
-    class _Dev:
+    class _Dev(_Recorded):
         serial_number = serial
         hw_version_major, hw_version_minor, hw_version_variant = 3, 6, 56
         fw_version_major, fw_version_minor, fw_version_revision = 0, 5, 6
@@ -264,7 +283,7 @@ def arrive_mid_scan(during: object, arriving: object) -> dict:
 
     def read_once(self) -> int:
         type(self).serial_number = serial  # fire on the first read only
-        scan = sys._getframe(1)  # the frame whose read sprang the trap
+        scan = sys._getframe(2)  # the frame whose read sprang the trap (1 is _Recorded.__getattribute__)
         report['fired_mid_scan'] = scan.f_code.co_name == 'discovery_loop' and serial not in scan.f_globals.get('devices', {})
         set_connected_devices([during, arriving])
         return serial

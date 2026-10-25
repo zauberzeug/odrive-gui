@@ -38,7 +38,7 @@ CI's separate `boot` job is what verifies `src/main.py` actually starts against 
 
 `controls(odrv)` takes a **live `fibre` remote object**, so it is dynamically typed (`Any`).
 Every attribute it reads (`odrv.axis0.motor.current_control.Iq_measured`, `odrv.axis0.controller.config.pos_gain`, …) mirrors the ODrive 0.5.x/0.6.x object tree.
-Every property read is a blocking USB round-trip on the event loop, so keep timers lean.
+Every property read is a blocking USB round-trip, so after the panel is built all device traffic goes through the single `_usb` worker in `controls.py` (`_Mirror` for bound values, `_on_usb` for timer reads, `_send` for writes and commands) — never read or write the device on the event loop, and keep timers lean.
 When you change the UI, mirror the same attribute path in `tools/mock_odrive.py` so the hardware-free tests keep covering it.
 
 ## Page structure (NiceGUI 3.x)

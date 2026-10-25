@@ -13,9 +13,9 @@ hardware-free runs and tests.
 from __future__ import annotations
 
 import asyncio
+import importlib
 import itertools
 import logging
-import sys
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
@@ -29,8 +29,9 @@ log = logging.getLogger('odrive_gui')
 
 # ``import odrive`` loads libfibre a second time, as top-level ``fibre``, and the device objects
 # come from that copy: its ObjectLostError and EmptyInterface are other classes than ours.
-LOST_ERRORS = (fibre.ObjectLostError, sys.modules['fibre'].ObjectLostError)
-EMPTY_INTERFACES = (fibre.libfibre.EmptyInterface, sys.modules['fibre'].libfibre.EmptyInterface)
+_device_fibre = importlib.import_module('fibre')  # what odrive's own discovery thread imports
+LOST_ERRORS = (fibre.ObjectLostError, _device_fibre.ObjectLostError)
+EMPTY_INTERFACES = (fibre.libfibre.EmptyInterface, _device_fibre.libfibre.EmptyInterface)
 
 MODES: dict[int, str] = {
     0: 'Voltage',

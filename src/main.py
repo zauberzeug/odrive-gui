@@ -13,9 +13,8 @@ from typing import Any
 
 import odrive
 from nicegui import app, ui
-from odrive.pyfibre import fibre
 
-from controls import controls
+from controls import controls, is_lost
 from theme import apply_theme, header
 
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s %(levelname)s %(message)s')
@@ -28,21 +27,6 @@ log.setLevel(logging.INFO)
 # the module is re-executed per page request and the startup loop's elements belong to
 # a throw-away client no browser ever sees.
 devices: dict[int, Any] = {}
-
-
-def is_lost(e: Exception) -> bool:
-    """Whether ``e`` means "the device left the bus" rather than a bug in our code.
-
-    fibre reports a loss in two ways: a read that fails on the bus raises
-    ``ObjectLostError``, but once libfibre's lost-object callback has run -- on *its own*
-    thread, so at any point, even between two reads of a synchronous panel build -- the
-    object's class is swapped to ``EmptyInterface`` and every attribute read raises a
-    plain ``AttributeError``. Only an ``AttributeError`` on such a lost object counts;
-    a typo'd attribute path in ``controls()`` still surfaces.
-    """
-    if isinstance(e, fibre.ObjectLostError):
-        return True
-    return isinstance(e, AttributeError) and isinstance(e.obj, fibre.libfibre.EmptyInterface)
 
 
 @ui.refreshable

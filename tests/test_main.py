@@ -8,13 +8,34 @@ This is the path that silently broke when NiceGUI 3.x turned module-scope UI int
 """
 
 import asyncio
+import threading
 
 import pytest
-from mock_odrive import arrive_mid_scan, lose_mock_odrive, make_mock_odrive, set_connected_devices
+from mock_odrive import arrive_mid_scan, lose_mock_odrive, make_mock_odrive, object_lost_error, set_connected_devices
 from nicegui import ui
 from nicegui.testing import User
 
-from controls import STATES
+from controls import STATES, _usb
+
+
+def state_buttons(user: User) -> dict[int, ui.button]:
+    return {state: user.find(kind=ui.button, content=label).elements.pop() for state, label in STATES.items()}
+
+
+def pick(user: User, state: int) -> None:
+    """Click the axis-state button for ``state``."""
+    user.find(kind=ui.button, content=STATES[state]).click()
+
+
+def shown_state(user: User) -> int | None:
+    """The state the axis-state buttons highlight."""
+    return next((state for state, button in state_buttons(user).items() if button.props.get('color') == 'primary'), None)
+
+
+async def drain() -> None:
+    """Wait until every device write queued so far has run on the USB worker."""
+    await asyncio.wrap_future(_usb.submit(lambda: None))
+
 
 pytestmark = pytest.mark.nicegui_main_file('src/main.py')
 
@@ -92,33 +113,33 @@ async def test_every_client_sees_the_devices(user: User, create_user) -> None:
     await other.should_see('SN 3333')
 
 
-async def test_state_toggle_only_writes_user_choices(user: User) -> None:
-    """The axis-state toggle mirrors ``current_state`` but must not echo it back as a
-    request: only a state picked in the UI is written to ``requested_state``."""
-    dev = make_mock_odrive(two_axes=False)  # one axis -> exactly one state toggle on the page
+async def test_state_buttons_show_the_device_state_and_only_clicks_request_one(user: User) -> None:
+    """The highlighted state follows ``current_state``, but only a click writes
+    ``requested_state`` -- a refresh never echoes the device's state back as a request."""
+    dev = make_mock_odrive(two_axes=False)  # one axis -> exactly one set of state buttons
     axis = dev.axis0
     axis.current_state = 8  # came up in CLOSED_LOOP_CONTROL
     axis.requested_state = 'untouched'
     set_connected_devices([dev])
     await user.open('/')
     await user.should_see('Axis 0')
-    await asyncio.sleep(0.3)  # a few binding refresh cycles
+    await asyncio.sleep(0.3)  # a few refreshes
     assert axis.requested_state == 'untouched'  # rendering did not request anything
+    assert shown_state(user) == 8
 
-    state_toggle = next(t for t in user.find(ui.toggle).elements if t.options == STATES)
-    assert state_toggle.value == 8
-    state_toggle.set_value(1)  # the user picks Idle
+    pick(user, 1)  # the user clicks Idle
+    await drain()
     assert axis.requested_state == 1
 
     axis.requested_state = 'untouched'
-    axis.current_state = 1  # the firmware followed; the toggle mirrors it …
+    axis.current_state = 1  # the firmware followed; the buttons show it …
     await asyncio.sleep(0.3)
-    assert state_toggle.value == 1
+    assert shown_state(user) == 1
     assert axis.requested_state == 'untouched'  # … without writing it back
-    axis.current_state = 3  # a state the toggle has no option for (calibration) …
+    axis.current_state = 3  # a state without a button (calibration) …
     await asyncio.sleep(0.3)
-    assert state_toggle.value is None
-    assert axis.requested_state == 'untouched'  # … is not written back as 0 either
+    assert shown_state(user) is None
+    assert axis.requested_state == 'untouched'  # … is not written back either
 
 
 async def test_stop_with_cleared_input_field_still_writes_zero(user: User) -> None:
@@ -132,4 +153,146 @@ async def test_stop_with_cleared_input_field_still_writes_zero(user: User) -> No
     field = next(n for n in user.find(ui.number).elements if n.props['label'] == 'input torque')
     field.set_value(None)  # the user cleared the box
     user.find(ui.button).trigger('click')  # includes the torque stop button (visible buttons only)
+    await drain()
     assert dev.axis0.controller.input_torque == 0.0
+
+
+async def test_gain_edits_reach_the_device_and_device_changes_reach_the_ui(user: User) -> None:
+    """The widgets bind to local mirrors, so both directions must still get through: an
+    edit is written to the device (and not undone by a refresh that read the old value
+    in the meantime), and a change made on the device shows up in the UI."""
+    device = make_mock_odrive(two_axes=False)  # one axis -> exactly one pos_gain field
+    set_connected_devices([device])
+    await user.open('/')
+    await user.should_see('pos_gain')
+    field = next(n for n in user.find(ui.number).elements if n.props.get('label') == 'pos_gain')
+    config = device.axis0.controller.config
+
+    field.set_value(42.0)
+    await asyncio.sleep(1.2)
+    assert config.pos_gain == 42.0
+    assert field.value == 42.0
+
+    config.pos_gain = 7.0  # changed behind the UI's back (odrivetool, another client)
+    await asyncio.sleep(1.2)
+    assert field.value == 7.0
+
+
+def _record_state_requests(axis, follow: bool = True) -> list[tuple[int, float]]:
+    """Record every ``requested_state`` write, with the ``current_lim`` the device had then."""
+    seen: list[tuple[int, float]] = []
+
+    def _request(self, state: int) -> None:
+        seen.append((state, self.motor.config.current_lim))
+        if follow:
+            self.current_state = state  # the firmware follows at once
+
+    axis.__class__ = type(
+        'RecordingAxis',
+        (type(axis),),
+        {'requested_state': property(lambda self: seen[-1][0] if seen else 1, _request)},
+    )
+    return seen
+
+
+async def test_a_quick_loop_then_idle_is_not_dropped(user: User) -> None:
+    """Loop then Idle before any refresh: both are requested, in order."""
+    dev = make_mock_odrive(two_axes=False)
+    seen = _record_state_requests(dev.axis0)
+    set_connected_devices([dev])
+    await user.open('/')
+    await user.should_see('Axis 0')
+    gate = threading.Event()
+    _usb.submit(gate.wait)  # hold the worker: no refresh can run in between
+    pick(user, 8)
+    pick(user, 1)
+    gate.set()
+    await drain()
+    assert [state for state, _ in seen] == [8, 1]
+
+
+async def test_a_command_does_not_overtake_a_setting_changed_before_it(user: User) -> None:
+    """Lowering ``current_lim`` and then entering closed loop must reach the device in that
+    order, even while the USB worker is busy: the limit is the motor's protection."""
+    dev = make_mock_odrive(two_axes=False)
+    seen = _record_state_requests(dev.axis0)
+    set_connected_devices([dev])
+    await user.open('/')
+    await user.should_see('current_lim')
+    limit = next(n for n in user.find(ui.number).elements if n.props.get('label') == 'current_lim')
+    gate = threading.Event()
+    _usb.submit(gate.wait)  # the worker is busy (a slow read, a refresh)
+    limit.set_value(1.0)
+    pick(user, 8)
+    gate.set()
+    await drain()
+    assert seen == [(8, 1.0)]
+
+
+async def test_idle_is_requested_even_while_idle_is_the_state_shown(user: User) -> None:
+    """The user clicks Loop; refreshes still read Idle because the firmware has not switched
+    yet, so Idle is what is shown; then the firmware enters Loop. The user's click on the
+    Idle shown must still be requested -- a toggle dropped it (on the server and in the
+    browser alike) and left the axis in closed loop."""
+    dev = make_mock_odrive(two_axes=False)
+    seen = _record_state_requests(dev.axis0, follow=False)
+    set_connected_devices([dev])
+    await user.open('/')
+    await user.should_see('Axis 0')
+    pick(user, 8)
+    await asyncio.sleep(0.3)  # refreshes still read Idle
+    assert shown_state(user) == 1
+    gate = threading.Event()
+    _usb.submit(gate.wait)  # no refresh shows the switch before the click
+    dev.axis0.current_state = 8  # now the firmware switches
+    pick(user, 1)
+    gate.set()
+    await drain()
+    assert [state for state, _ in seen] == [8, 1]
+
+
+async def test_a_click_on_the_state_the_axis_is_already_in_is_not_requested(user: User) -> None:
+    """Re-requesting CLOSED_LOOP for an axis already in it makes 0.5.x firmware leave and
+    re-enter closed loop (a brief disarm of a live motor), so a second click on Loop is
+    dropped. Idle is still requested, whatever the state shown."""
+    dev = make_mock_odrive(two_axes=False)
+    dev.axis0.current_state = 8
+    seen = _record_state_requests(dev.axis0, follow=False)
+    set_connected_devices([dev])
+    await user.open('/')
+    await user.should_see('Axis 0')
+    assert shown_state(user) == 8
+    pick(user, 8)
+    pick(user, 1)
+    await drain()
+    assert [state for state, _ in seen] == [1]
+
+
+async def test_a_sub_object_lost_before_its_axis_is_not_an_error(user: User) -> None:
+    """libfibre tears a lost device down children first, on its own thread, so a timer can
+    read through an already lost sub-object (the current controller for the power label)
+    while the axis it checks still looks alive. That read is a lost device, not a bug."""
+    dev = make_mock_odrive(two_axes=False)
+    set_connected_devices([dev])
+    await user.open('/')
+    await user.should_see('Axis 0')
+    lose_mock_odrive(dev.axis0.motor.current_control)
+    await asyncio.sleep(0.3)  # several 10 Hz power-label updates
+
+
+async def test_a_device_dropping_off_mid_save_or_reboot_is_not_an_error(user: User) -> None:
+    """This firmware reboots on save, and reboot drops the device: both calls then raise the
+    device's ``ObjectLostError``. That comes from ``odrive``'s second, top-level copy of
+    libfibre, not ``odrive.pyfibre.fibre``, and must not be logged as a failed write."""
+    dev = make_mock_odrive(two_axes=False)
+
+    def lost() -> None:
+        raise object_lost_error()
+
+    dev.save_configuration = lost
+    dev.reboot = lost
+    set_connected_devices([dev])
+    await user.open('/')
+    await user.should_see('Axis 0')
+    user.find(ui.button).trigger('click')  # includes save and reboot; any ERROR log fails the test
+    await drain()

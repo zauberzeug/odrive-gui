@@ -69,6 +69,21 @@ def _lost(obj: Any) -> bool:
     return obj.__class__ in EMPTY_INTERFACES
 
 
+def is_lost(e: BaseException) -> bool:
+    """Whether ``e`` means "the device left the bus" rather than a bug in our code.
+
+    fibre reports a loss in two ways: a read that fails on the bus raises
+    ``ObjectLostError``, but once libfibre's lost-object callback has run -- on *its own*
+    thread, so at any point, even between two reads of a synchronous panel build -- the
+    object's class is swapped to ``EmptyInterface`` and every attribute read raises a
+    plain ``AttributeError``. Only an ``AttributeError`` on such a lost object counts;
+    a typo'd attribute path in ``controls()`` still surfaces.
+    """
+    if isinstance(e, LOST_ERRORS):
+        return True
+    return isinstance(e, AttributeError) and isinstance(e.obj, EMPTY_INTERFACES)
+
+
 # Every device read or write is a blocking USB round-trip. After the panel is built, all of
 # them run on this one worker, in the order they were issued: the event loop never waits for
 # the bus, and a command can never overtake a setting the user changed before it.
@@ -81,18 +96,23 @@ def _send(obj: Any, fn: Callable[[], Any]) -> None:
 
     def done(future: Future) -> None:
         e = future.exception()
-        if e is not None and not (isinstance(e, LOST_ERRORS) or _lost(obj)):
+        if e is not None and not (is_lost(e) or _lost(obj)):
             log.error('ODrive write failed', exc_info=e)
 
     _usb.submit(fn).add_done_callback(done)
 
 
 async def _on_usb(obj: Any, fn: Callable[[], Any]) -> Any:
-    """``fn()`` on the USB worker; ``None`` if ``obj``'s device left the bus meanwhile."""
+    """``fn()`` on the USB worker; ``None`` if ``obj``'s device left the bus meanwhile.
+
+    ``fn`` may read through sub-objects of ``obj``. libfibre tears a lost device down
+    children first, so such a read can fail while ``obj`` still looks alive: ``is_lost``
+    recognises it by the object the ``AttributeError`` names.
+    """
     try:
         return await asyncio.get_running_loop().run_in_executor(_usb, fn)
     except Exception as e:
-        if isinstance(e, LOST_ERRORS) or _lost(obj):
+        if is_lost(e) or _lost(obj):
             return None
         raise
 

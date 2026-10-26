@@ -268,6 +268,18 @@ async def test_a_click_on_the_state_the_axis_is_already_in_is_not_requested(user
     assert [state for state, _ in seen] == [1]
 
 
+async def test_a_sub_object_lost_before_its_axis_is_not_an_error(user: User) -> None:
+    """libfibre tears a lost device down children first, on its own thread, so a timer can
+    read through an already lost sub-object (the current controller for the power label)
+    while the axis it checks still looks alive. That read is a lost device, not a bug."""
+    dev = make_mock_odrive(two_axes=False)
+    set_connected_devices([dev])
+    await user.open('/')
+    await user.should_see('Axis 0')
+    lose_mock_odrive(dev.axis0.motor.current_control)
+    await asyncio.sleep(0.3)  # several 10 Hz power-label updates
+
+
 async def test_a_device_dropping_off_mid_save_or_reboot_is_not_an_error(user: User) -> None:
     """This firmware reboots on save, and reboot drops the device: both calls then raise the
     device's ``ObjectLostError``. That comes from ``odrive``'s second, top-level copy of

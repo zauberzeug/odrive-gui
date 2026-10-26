@@ -50,6 +50,8 @@ INPUT_MODES: dict[int, str] = {
     7: 'Mirror',
 }
 
+IDLE = 1
+
 STATES: dict[int, str] = {
     0: 'Undefined',
     1: 'Idle',
@@ -223,15 +225,19 @@ def _create_axis_column(index: int, axis: Any) -> None:
     ui.timer(1.0, update_error)
 
     def request_state(state: int) -> None:
+        if state != IDLE and state == axis_state.current_state:
+            return  # re-requesting e.g. CLOSED_LOOP would briefly disarm the motor (see below)
         _send(axis, lambda: setattr(axis, 'requested_state', state))
 
-    # The axis state is one button per state, not a toggle: every click must reach the
+    # The axis state is one button per state, not a toggle: a click on Idle must reach the
     # device, but a toggle drops a click on the option it already shows -- and the state
     # shown can be a refresh old (the firmware has not switched yet), so that click can be
     # the Idle that stops a motor. A toggle's value changes are no better a trigger: they
     # also fire when a refresh shows the device's state, and writing that back re-requested
     # e.g. CLOSED_LOOP for an axis already in it, which makes 0.5.x firmware leave and
-    # re-enter closed loop (a brief disarm of a live motor). So clicks request, refreshes show.
+    # re-enter closed loop (a brief disarm of a live motor). So clicks request, refreshes show,
+    # and a click on any other state the axis is already in is dropped: at worst a stale
+    # state swallows a click that starts nothing.
     state_buttons: dict[int, ui.button] = {}
     shown: list[int | None] = [None]
 

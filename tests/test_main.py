@@ -251,6 +251,23 @@ async def test_idle_is_requested_even_while_idle_is_the_state_shown(user: User) 
     assert [state for state, _ in seen] == [8, 1]
 
 
+async def test_a_click_on_the_state_the_axis_is_already_in_is_not_requested(user: User) -> None:
+    """Re-requesting CLOSED_LOOP for an axis already in it makes 0.5.x firmware leave and
+    re-enter closed loop (a brief disarm of a live motor), so a second click on Loop is
+    dropped. Idle is still requested, whatever the state shown."""
+    dev = make_mock_odrive(two_axes=False)
+    dev.axis0.current_state = 8
+    seen = _record_state_requests(dev.axis0, follow=False)
+    set_connected_devices([dev])
+    await user.open('/')
+    await user.should_see('Axis 0')
+    assert shown_state(user) == 8
+    pick(user, 8)
+    pick(user, 1)
+    await drain()
+    assert [state for state, _ in seen] == [1]
+
+
 async def test_a_device_dropping_off_mid_save_or_reboot_is_not_an_error(user: User) -> None:
     """This firmware reboots on save, and reboot drops the device: both calls then raise the
     device's ``ObjectLostError``. That comes from ``odrive``'s second, top-level copy of

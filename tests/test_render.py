@@ -81,6 +81,18 @@ async def test_live_values_are_not_read_on_the_event_loop(user: User) -> None:
     assert READS['odrive-usb_0'] > before['odrive-usb_0']  # the live values are still read, on the worker
 
 
+async def test_config_values_are_not_polled_at_10_hz(user: User) -> None:
+    """Every worker read delays the writes and commands queued behind it. Only the axis
+    state and the power label must feel live; the ~22 bound config values per axis are
+    refreshed at 1 Hz (two calibrated axes: ~105 reads per second instead of ~480)."""
+    await user.open('/')
+    await user.should_see('Axis 1')
+    await asyncio.sleep(0.5)  # past the reads of the panel build
+    before = READS['odrive-usb_0']
+    await asyncio.sleep(2.0)
+    assert (READS['odrive-usb_0'] - before) / 2.0 < 150
+
+
 async def test_a_refresh_that_read_before_an_edit_does_not_undo_it(user: User, mock_odrive) -> None:
     """A refresh reads on the USB worker while the user may edit the same value: the read
     sees the old device value, and applying it would snap the widget back -- whose change

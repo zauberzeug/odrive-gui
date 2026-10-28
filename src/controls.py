@@ -225,10 +225,13 @@ def _create_axis_column(index: int, axis: Any) -> None:
     axis_state, ctr_cfg, mtr_cfg, enc_cfg, trp_cfg = mirrors
     cc = axis.motor.current_control
 
-    async def sync_mirrors() -> None:
-        for mirror in mirrors:
-            await mirror.sync()
+    async def sync_state() -> None:
+        await axis_state.sync()
         show_state(axis_state.current_state)
+
+    async def sync_config() -> None:
+        for mirror in mirrors[1:]:
+            await mirror.sync()
 
     async def update_power() -> None:
         if (watts := await _on_usb(axis, lambda: cc.Iq_measured * cc.v_current_control_integral_q)) is not None:
@@ -239,9 +242,11 @@ def _create_axis_column(index: int, axis: Any) -> None:
             button.set_enabled(error != 0)
 
     # every property read is a USB round-trip, so keep the 10 Hz path to the two values
-    # that must feel live; the error flag only enables a button and can follow at 1 Hz.
+    # that must feel live. The error flag only enables a button, and config values only
+    # change when someone edits them (an edit here shows at once), so they follow at 1 Hz.
     ui.timer(0.1, update_power)
-    ui.timer(0.1, sync_mirrors)
+    ui.timer(0.1, sync_state)
+    ui.timer(1.0, sync_config)
     ui.timer(1.0, update_error)
 
     def request_state(state: int) -> None:

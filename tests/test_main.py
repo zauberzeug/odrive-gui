@@ -174,7 +174,7 @@ async def test_gain_edits_reach_the_device_and_device_changes_reach_the_ui(user:
     assert field.value == 42.0
 
     config.pos_gain = 7.0  # changed behind the UI's back (odrivetool, another client)
-    await asyncio.sleep(1.2)
+    await asyncio.sleep(2.0)  # config values are refreshed at 1 Hz
     assert field.value == 7.0
 
 
